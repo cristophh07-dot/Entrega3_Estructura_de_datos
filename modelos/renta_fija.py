@@ -1,4 +1,3 @@
-"""Clase abstracta de renta fija (CDT, bono, TES)."""
 
 from abc import ABC
 from datetime import date
@@ -7,12 +6,7 @@ from modelos.activo import Activo
 
 
 class RentaFija(Activo, ABC):
-    """Título de renta fija. No se instancia directamente.
 
-    Tasas en decimal E.A. (0.12 = 12 %).
-    periodicidad_meses: 0 = paga todo al vencimiento; si no, 1, 3, 6 o 12.
-    tasa_mercado: tasa E.A. para valorar. Si es None se usa tasa.
-    """
 
     PERIODICIDADES_VALIDAS = (0, 1, 3, 6, 12)
     TIPOS_RENTA_FIJA = ("CDT", "BONO", "TES")
@@ -73,8 +67,6 @@ class RentaFija(Activo, ABC):
             return self.tasa_mercado
         return self.tasa
 
-    # es_renta_fija queda abstracto (lo define Activo).
-    # Lo implementan CDT y Bono. Así RentaFija no se puede instanciar.
 
     def __str__(self) -> str:
         identificador = self.id if self.id is not None else "sin id"

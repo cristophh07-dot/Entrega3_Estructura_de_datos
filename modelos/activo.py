@@ -1,10 +1,8 @@
-"""Clase abstracta base de todo activo del portafolio."""
 
 from abc import ABC, abstractmethod
 
 
 class Activo(ABC):
-    """Activo financiero. No se instancia directamente."""
 
     TIPOS_VALIDOS = ("ACCION", "CDT", "BONO", "TES")
 
@@ -23,7 +21,6 @@ class Activo(ABC):
 
     @abstractmethod
     def es_renta_fija(self) -> bool:
-        """True si el activo se valora por condiciones contractuales."""
 
     def __str__(self) -> str:
         identificador = self.id if self.id is not None else "sin id"

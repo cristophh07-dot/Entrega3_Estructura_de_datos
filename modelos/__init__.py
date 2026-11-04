@@ -1,4 +1,3 @@
-"""Modelos de dominio del portafolio. Una clase por archivo."""
 
 from modelos.activo import Activo
 from modelos.accion import Accion

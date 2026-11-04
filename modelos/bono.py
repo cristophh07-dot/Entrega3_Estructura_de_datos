@@ -1,4 +1,3 @@
-"""Bono de renta fija."""
 
 from datetime import date
 
@@ -6,7 +5,6 @@ from modelos.renta_fija import RentaFija
 
 
 class Bono(RentaFija):
-    """Bono. TES hereda de esta clase."""
 
     def __init__(
         self,

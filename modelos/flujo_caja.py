@@ -1,10 +1,8 @@
-"""Dividendo, interés, pago de capital u otro ingreso del activo."""
 
 from datetime import date
 
 
 class FlujoCaja:
-    """retencion: decimal entre 0 y 1. Por defecto 0."""
 
     TIPOS_VALIDOS = ("DIVIDENDO", "INTERES", "CAPITAL", "OTRO")
 

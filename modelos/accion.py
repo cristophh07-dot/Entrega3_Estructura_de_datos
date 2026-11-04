@@ -1,10 +1,9 @@
-"""Acción: renta variable cotizada en bolsa."""
+
 
 from modelos.activo import Activo
 
 
 class Accion(Activo):
-    """Acción identificada por un ticker de Yahoo Finance."""
 
     MONEDAS_VALIDAS = ("COP", "USD")
 

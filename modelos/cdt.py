@@ -1,4 +1,3 @@
-"""Certificado de Depósito a Término."""
 
 from datetime import date
 
@@ -6,7 +5,6 @@ from modelos.renta_fija import RentaFija
 
 
 class CDT(RentaFija):
-    """CDT. Por defecto paga capital e intereses al vencimiento."""
 
     def __init__(
         self,

@@ -1,10 +1,8 @@
-"""Compra o venta de un activo."""
 
 from datetime import date
 
 
 class Operacion:
-    """cantidad: acciones o títulos. precio y comision en COP."""
 
     TIPOS_VALIDOS = ("COMPRA", "VENTA")
 
@@ -46,7 +44,6 @@ class Operacion:
 
     @property
     def flujo_neto(self) -> float:
-        """Negativo en compra, positivo en venta."""
         if self.tipo == "COMPRA":
             return -(self.valor_bruto + self.comision)
         return self.valor_bruto - self.comision

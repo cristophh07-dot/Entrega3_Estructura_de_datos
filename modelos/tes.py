@@ -1,4 +1,3 @@
-"""Título de Tesorería (TES). Es un bono emitido por la Nación."""
 
 from datetime import date
 
@@ -7,7 +6,6 @@ from modelos.renta_fija import RentaFija
 
 
 class TES(Bono):
-    """TES. Misma estructura que Bono, con tipo 'TES'."""
 
     def __init__(
         self,
@@ -20,8 +18,7 @@ class TES(Bono):
         tasa_mercado: float | None = None,
         id: int | None = None,
     ) -> None:
-        # No usamos Bono.__init__ porque ese fija tipo="BONO".
-        # Llamamos a RentaFija y mantenemos la herencia TES → Bono.
+
         RentaFija.__init__(
             self,
             nombre=nombre,

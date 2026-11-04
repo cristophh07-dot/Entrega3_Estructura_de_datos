@@ -1,8 +1,8 @@
 """
 ServicioPreciosMock: imita a datos.servicio_precios.ServicioPrecios.
 
-Precios fijos y un historial sintético (siempre el mismo) para probar el
-motor y las gráficas sin internet. Todo en pesos colombianos (COP).
+Precios fijos y un historial sintético (reproducible) para probar el
+motor y las gráficas sin internet. Todo en COP.
 """
 from datetime import date, timedelta
 import math
@@ -15,26 +15,29 @@ class ServicioPreciosMock:
 
     TRM = 4_100.0
 
-    # Precio actual en COP (AAPL ya convertido con la TRM).
+    # Precio actual en COP (las acciones en USD ya convertidas con la TRM).
     _PRECIOS = {
         "AAPL": 1_045_000.0,
         "ECOPETROL": 2_380.0,
+        "NKE": 278_800.0,
+        "KO": 295_200.0,
     }
 
     _DIVIDENDOS = {
         "AAPL": [(date(2026, 5, 15), 3_600.0)],
         "ECOPETROL": [(date(2026, 4, 28), 300.0)],
+        "NKE": [(date(2026, 7, 1), 1_681.0)],
+        "KO": [(date(2026, 4, 1), 2_173.0), (date(2026, 7, 1), 2_173.0)],
     }
 
     def __init__(self, repositorio=None):
         self.repositorio = repositorio
 
     def precio_actual(self, ticker):
-        """Precio de hoy, o None si el ticker no existe."""
         return self._PRECIOS.get(ticker)
 
     def historial(self, ticker, desde):
-        """Serie diaria (sin fines de semana) que termina en el precio actual."""
+        """Serie diaria suave que termina en el precio actual."""
         final = self._PRECIOS.get(ticker)
         if final is None:
             return pd.DataFrame(columns=["fecha", "precio"])
@@ -44,7 +47,7 @@ class ServicioPreciosMock:
         filas = []
         for i in range(dias + 1):
             d = desde + timedelta(days=i)
-            if d.weekday() >= 5:  # sábado = 5, domingo = 6: no hay mercado
+            if d.weekday() >= 5:  # sin mercado fines de semana
                 continue
             avance = i / dias if dias else 1
             ruido = 0.03 * math.sin(i / 9 + semilla)
@@ -53,11 +56,9 @@ class ServicioPreciosMock:
         return pd.DataFrame(filas, columns=["fecha", "precio"])
 
     def dividendos(self, ticker, desde):
-        """Dividendos por acción pagados desde una fecha."""
         filas = [{"fecha": f, "valor_por_accion": v}
                  for f, v in self._DIVIDENDOS.get(ticker, []) if f >= desde]
         return pd.DataFrame(filas, columns=["fecha", "valor_por_accion"])
 
     def trm_actual(self):
-        """Pesos por dólar."""
         return self.TRM

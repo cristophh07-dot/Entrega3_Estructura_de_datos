@@ -5,6 +5,8 @@ Devuelve datos falsos en memoria para que motor/ e interfaz/ puedan
 trabajar sin esperar la base de datos real. Los objetos son
 SimpleNamespace con EXACTAMENTE los atributos del contrato, así el
 código que los usa funciona igual con las clases reales de modelos/.
+
+Se reemplaza en main.py por Repositorio() cuando datos/ esté listo.
 """
 from datetime import date
 from types import SimpleNamespace
@@ -22,7 +24,9 @@ class RepositorioMock:
         self._siguiente_id = 1
         self._cargar_ejemplo()
 
-    # ---------- Constructores de objetos falsos (mismos atributos que modelos/) ----------
+    # ------------------------------------------------------------------
+    # Constructores de objetos falsos (mismos atributos que modelos/)
+    # ------------------------------------------------------------------
     @staticmethod
     def _accion(id_, nombre, ticker, moneda):
         return SimpleNamespace(
@@ -67,17 +71,23 @@ class RepositorioMock:
         self._siguiente_id += 1
         return nuevo
 
-    # ---------- Portafolio de ejemplo ----------
+    # ------------------------------------------------------------------
+    # Portafolio de ejemplo
+    # ------------------------------------------------------------------
     def _cargar_ejemplo(self):
+        # Ticker de Ecopetrol solo ilustrativo: Josué debe verificar el real.
         activos = [
             self._accion(1, "Apple", "AAPL", "USD"),
             self._accion(2, "Ecopetrol", "ECOPETROL", "COP"),
             self._renta_fija(3, "CDT Banco 360 días", "CDT", 5_000_000, 0.105,
                              date(2026, 2, 2), date(2027, 2, 2), 0),
             self._renta_fija(4, "Bono corporativo 2029", "BONO", 10_000_000,
-                             0.11, date(2024, 5, 15), date(2029, 5, 15), 6, 0.105),
+                             0.11, date(2024, 5, 15), date(2029, 5, 15), 6,
+                             0.105),
             self._renta_fija(5, "TES COP 2031", "TES", 1_000_000, 0.07,
                              date(2020, 3, 26), date(2031, 3, 26), 12, 0.112),
+            self._accion(6, "Nike", "NKE", "USD"),
+            self._accion(7, "Coca-Cola", "KO", "USD"),
         ]
         for a in activos:
             self._activos[a.id] = a
@@ -89,6 +99,8 @@ class RepositorioMock:
             self._operacion(4, 4, "COMPRA", date(2026, 3, 10), 1, 10_150_000, 25_000),
             self._operacion(5, 5, "COMPRA", date(2026, 4, 6), 5, 905_000, 18_000),
             self._operacion(6, 1, "VENTA", date(2026, 8, 20), 3, 1_020_000, 10_000),
+            self._operacion(7, 6, "COMPRA", date(2026, 2, 10), 20, 290_000, 12_000),
+            self._operacion(8, 7, "COMPRA", date(2026, 2, 12), 30, 287_000, 12_000),
         ]
         for o in operaciones:
             self._operaciones[o.id] = o
@@ -97,13 +109,18 @@ class RepositorioMock:
             self._flujo(1, 1, "DIVIDENDO", date(2026, 5, 15), 36_000, 0.30),
             self._flujo(2, 2, "DIVIDENDO", date(2026, 4, 28), 600_000, 0.10),
             self._flujo(3, 4, "INTERES", date(2026, 5, 15), 535_000, 0.04),
+            self._flujo(4, 7, "DIVIDENDO", date(2026, 4, 1), 65_190, 0.30),
+            self._flujo(5, 6, "DIVIDENDO", date(2026, 7, 1), 33_620, 0.30),
+            self._flujo(6, 7, "DIVIDENDO", date(2026, 7, 1), 65_190, 0.30),
         ]
         for f in flujos:
             self._flujos[f.id] = f
 
         self._siguiente_id = 100
 
-    # ---------- Métodos del contrato ----------
+    # ------------------------------------------------------------------
+    # Métodos del contrato
+    # ------------------------------------------------------------------
     def guardar_activo(self, activo):
         if getattr(activo, "id", None) is None:
             activo.id = self._nuevo_id()

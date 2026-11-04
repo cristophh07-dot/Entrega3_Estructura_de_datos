@@ -1,4 +1,3 @@
-"""Persistencia SQLite del portafolio."""
 
 import sqlite3
 from datetime import date
@@ -252,13 +251,7 @@ class Repositorio:
         if isinstance(precio, bool) or not isinstance(precio, (int, float)) or precio <= 0:
             raise ValueError("precio debe ser mayor que 0")
         self._conexion.execute(
-            """
-            INSERT INTO precios (ticker, fecha, precio, fuente)
-            VALUES (?, ?, ?, 'manual')
-            ON CONFLICT(ticker, fecha) DO UPDATE SET
-                precio = excluded.precio,
-                fuente = 'manual'
-            """,
+            
             (ticker.strip().upper(), fecha.isoformat(), float(precio)),
         )
         self._conexion.commit()
@@ -334,3 +327,6 @@ class Repositorio:
             retencion=fila["retencion"],
             id=fila["id"],
         )
+
+
+        ##faltan unos cambios y agregar unas cosas

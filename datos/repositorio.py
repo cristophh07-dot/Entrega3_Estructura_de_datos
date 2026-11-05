@@ -1,4 +1,3 @@
-
 import sqlite3
 from datetime import date
 
@@ -11,11 +10,6 @@ from modelos.tes import TES
 
 
 class Repositorio:
-    """Guarda y lee activos, operaciones, flujos y precios manuales.
-
-    Fechas en texto ISO AAAA-MM-DD. Consultas siempre con parámetros.
-    """
-
     def __init__(self, ruta_db: str = "portafolio.db") -> None:
         self.ruta_db = ruta_db
         self._conexion = sqlite3.connect(ruta_db)
@@ -250,11 +244,42 @@ class Repositorio:
             raise ValueError("fecha debe ser datetime.date (sin hora)")
         if isinstance(precio, bool) or not isinstance(precio, (int, float)) or precio <= 0:
             raise ValueError("precio debe ser mayor que 0")
+        self._guardar_precio(ticker, fecha, float(precio), "manual")
+
+    def _guardar_precio(
+        self, ticker: str, fecha: date, precio: float, fuente: str
+    ) -> None:
         self._conexion.execute(
-            
-            (ticker.strip().upper(), fecha.isoformat(), float(precio)),
+            """
+            INSERT OR REPLACE INTO precios (ticker, fecha, precio, fuente)
+            VALUES (?, ?, ?, ?)
+            """,
+            (ticker.strip().upper(), fecha.isoformat(), float(precio), fuente),
         )
         self._conexion.commit()
+
+    def _precio_en_fecha(self, ticker: str, fecha: date) -> float | None:
+        fila = self._conexion.execute(
+            "SELECT precio FROM precios WHERE ticker = ? AND fecha = ?",
+            (ticker.strip().upper(), fecha.isoformat()),
+        ).fetchone()
+        if fila is None:
+            return None
+        return float(fila["precio"])
+
+    def _ultimo_precio(self, ticker: str) -> tuple[date, float] | None:
+        fila = self._conexion.execute(
+            """
+            SELECT fecha, precio FROM precios
+            WHERE ticker = ?
+            ORDER BY fecha DESC
+            LIMIT 1
+            """,
+            (ticker.strip().upper(),),
+        ).fetchone()
+        if fila is None:
+            return None
+        return date.fromisoformat(fila["fecha"]), float(fila["precio"])
 
     def _fila_activo(self, activo) -> tuple:
         ticker = getattr(activo, "ticker", None)
@@ -327,6 +352,3 @@ class Repositorio:
             retencion=fila["retencion"],
             id=fila["id"],
         )
-
-
-        ##faltan unos cambios y agregar unas cosas

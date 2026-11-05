@@ -88,4 +88,20 @@ class PortafolioMock:
             base = final * (0.3 + 0.7 * min(i / 90, 1))   # se va comprando hasta abril
             valor = base * (0.97 + 0.03 * i / dias + 0.015 * math.sin(i / 11))
             filas.append({"fecha": d, "valor": round(valor, 2)})
-        return
+        return pd.DataFrame(filas, columns=["fecha", "valor"])
+
+    def proximos_flujos(self, dias=90):
+        hoy = date.today()
+        filas = [
+            {"fecha": date(2026, 11, 15), "nombre": "Bono corporativo 2029",
+             "tipo": "INTERES", "valor": 535_000.0},
+            {"fecha": date(2026, 12, 15), "nombre": "Coca-Cola",
+             "tipo": "DIVIDENDO", "valor": 45_633.0},
+            {"fecha": date(2027, 1, 2), "nombre": "Nike",
+             "tipo": "DIVIDENDO", "valor": 23_534.0},
+            {"fecha": date(2027, 2, 2), "nombre": "CDT Banco 360 días",
+             "tipo": "CAPITAL", "valor": 5_525_000.0},
+        ]
+        limite = hoy + timedelta(days=dias)
+        filas = [f for f in filas if hoy <= f["fecha"] <= limite]
+        return pd.DataFrame(filas, columns=["fecha", "nombre", "tipo", "valor"])

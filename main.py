@@ -1,8 +1,10 @@
 """
 Punto de entrada único del sistema de seguimiento de portafolio.
 
-Ejecutar:  py main.py          → usa las clases reales
-           py main.py --mock   → usa los datos falsos de mocks/
+Ejecutar:  py main.py                  → usa las clases reales
+           py main.py --mock           → usa los datos falsos de mocks/
+           py main.py --cargar-ejemplo → llena la base de datos con el
+                                         portafolio de ejemplo (si está vacía)
 
 Mientras alguna parte real no exista todavía, main.py usa
 automáticamente su mock y lo avisa en consola.
@@ -47,6 +49,9 @@ def main():
     usar_mock = "--mock" in sys.argv
     repositorio = crear_repositorio(usar_mock)
     precios = crear_servicio_precios(repositorio, usar_mock)
+    if "--cargar-ejemplo" in sys.argv and not usar_mock:
+        from motor.cargador_ejemplo import CargadorEjemplo
+        CargadorEjemplo(repositorio, precios).cargar()
     portafolio = crear_portafolio(repositorio, precios, usar_mock)
 
     try:

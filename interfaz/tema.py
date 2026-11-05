@@ -35,8 +35,9 @@ class Tema:
     FUENTE_SUBTITULO = (FAMILIA, 16, "bold")
     FUENTE_NORMAL = (FAMILIA, 14)
     FUENTE_PEQUENA = (FAMILIA, 12)
+    FUENTE_TABLA = (FAMILIA, 12)
     FUENTE_MENU = (FAMILIA, 15)
-    FUENTE_TARJETA = (FAMILIA, 24, "bold")
+    FUENTE_TARJETA = (FAMILIA, 20, "bold")
 
     # ---- Tamaños ----
     ANCHO_VENTANA = 1280
@@ -64,6 +65,12 @@ class Tema:
         entero = round(valor)
         signo = "-" if entero < 0 else ""
         return f"{signo}$ {Tema._numero(abs(entero), 0)}"
+
+    @staticmethod
+    def cantidad(valor: float) -> str:
+        """Acciones o títulos: sin decimales si es entera (2000 -> '2.000')."""
+        decimales = 0 if float(valor).is_integer() else 2
+        return Tema._numero(float(valor), decimales)
 
     @staticmethod
     def porcentaje(decimal: float) -> str:

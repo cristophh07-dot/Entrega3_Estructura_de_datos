@@ -32,6 +32,10 @@ class TablaDatos(ctk.CTkFrame):
         )
         self._arbol.configure(yscrollcommand=barra.set)
 
+        # Filas alternas: dan guía a la vista sin dibujar una línea por fila.
+        self._arbol.tag_configure("par", background=Tema.TARJETA)
+        self._arbol.tag_configure("impar", background=Tema.ZEBRA)
+
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
         self._arbol.grid(row=0, column=0, sticky="nsew")
@@ -44,21 +48,22 @@ class TablaDatos(ctk.CTkFrame):
         estilo.theme_use("clam")
         estilo.configure(
             "Tema.Treeview", background=Tema.TARJETA, fieldbackground=Tema.TARJETA,
-            foreground=Tema.TEXTO, rowheight=30, borderwidth=0, font=Tema.FUENTE_TABLA,
+            foreground=Tema.TEXTO, rowheight=28, borderwidth=0, font=Tema.FUENTE_TABLA,
         )
         estilo.configure(
-            "Tema.Treeview.Heading", background=Tema.PANEL, foreground=Tema.TEXTO_SECUNDARIO,
-            relief="flat", borderwidth=0, padding=(8, 8), font=Tema.FUENTE_TABLA,
+            "Tema.Treeview.Heading", background=Tema.TARJETA, foreground=Tema.TEXTO_SECUNDARIO,
+            relief="flat", borderwidth=0, padding=(8, 6), font=Tema.FUENTE_TABLA,
         )
         estilo.map(
             "Tema.Treeview",
-            background=[("selected", Tema.BORDE)], foreground=[("selected", Tema.TEXTO)],
+            background=[("selected", Tema.HOVER)], foreground=[("selected", Tema.TEXTO)],
         )
-        estilo.map("Tema.Treeview.Heading", background=[("active", Tema.PANEL)])
+        estilo.map("Tema.Treeview.Heading", background=[("active", Tema.TARJETA)])
         estilo.layout("Tema.Treeview", [("Treeview.treearea", {"sticky": "nswe"})])
 
     def cargar(self, filas) -> None:
         """Reemplaza el contenido. Cada fila es una lista de textos, en el orden de las columnas."""
         self._arbol.delete(*self._arbol.get_children())
-        for fila in filas:
-            self._arbol.insert("", "end", values=list(fila))
+        for indice, fila in enumerate(filas):
+            self._arbol.insert("", "end", values=list(fila),
+                               tags=("par" if indice % 2 == 0 else "impar",))

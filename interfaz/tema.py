@@ -4,47 +4,53 @@ import customtkinter as ctk
 class Tema:
     """Estilo visual compartido por todas las vistas.
 
+    Referencia de diseño: paneles planos de estilo terminal financiero, con
+    bordes de 1 px, esquinas casi rectas, una base neutra y un solo acento.
+
     Todo lo que se ve (colores, fuentes, tamaños) y todo el formato de números
     (pesos y porcentajes) vive aquí. Si algo se quiere cambiar en la
     aplicación, se cambia en este archivo y las vistas lo heredan.
     No se instancia: se usa directamente como Tema.ACENTO, Tema.pesos(...), etc.
     """
 
-    # ---- Colores: modo oscuro, azul pizarra con un solo acento dorado ----
-    FONDO = "#10141C"
-    PANEL = "#161B26"
-    TARJETA = "#1C2230"
-    BORDE = "#2A3244"
-    TEXTO = "#E9ECF2"
-    TEXTO_SECUNDARIO = "#8F9AB0"
-    ACENTO = "#D9A441"
-    ACENTO_HOVER = "#C28F32"
-    TEXTO_SOBRE_ACENTO = "#10141C"
+    # ---- Colores: grafito neutro; la jerarquía sale del tono y de líneas de 1 px ----
+    FONDO = "#111214"
+    PANEL = "#16171A"       # barra lateral
+    TARJETA = "#16171A"     # superficie de los paneles
+    ZEBRA = "#1B1C20"       # filas alternas de las tablas
+    HOVER = "#202226"
+    BORDE = "#363940"
+    TEXTO = "#E7E8EA"
+    TEXTO_SECUNDARIO = "#8A8E97"
+    ACENTO = "#E0A23A"
+    ACENTO_HOVER = "#C98F2E"
+    TEXTO_SOBRE_ACENTO = "#111214"
 
     # Colores con significado financiero
-    GANANCIA = "#3DBE8B"
-    PERDIDA = "#E5586B"
+    GANANCIA = "#4CAF82"
+    PERDIDA = "#D95C5C"
 
-    # Colores de las gráficas
-    RENTA_FIJA = "#5B9BD5"
-    RENTA_VARIABLE = "#D9A441"
+    # Colores de las gráficas (el acento solo marca lo importante)
+    RENTA_FIJA = "#6F7886"
+    RENTA_VARIABLE = "#E0A23A"
 
     # ---- Fuentes (familia, tamaño, peso) ----
     FAMILIA = "Segoe UI"
-    FUENTE_TITULO = (FAMILIA, 26, "bold")
-    FUENTE_SUBTITULO = (FAMILIA, 16, "bold")
-    FUENTE_NORMAL = (FAMILIA, 14)
+    FAMILIA_NEGRITA = "Segoe UI Semibold"
+    FUENTE_TITULO = (FAMILIA_NEGRITA, 22)
+    FUENTE_SUBTITULO = (FAMILIA_NEGRITA, 13)
+    FUENTE_NORMAL = (FAMILIA, 13)
     FUENTE_PEQUENA = (FAMILIA, 12)
     FUENTE_TABLA = (FAMILIA, 12)
-    FUENTE_MENU = (FAMILIA, 15)
-    FUENTE_TARJETA = (FAMILIA, 20, "bold")
+    FUENTE_MENU = (FAMILIA, 14)
+    FUENTE_TARJETA = (FAMILIA_NEGRITA, 20)
 
     # ---- Tamaños ----
     ANCHO_VENTANA = 1280
     ALTO_VENTANA = 760
-    ANCHO_MENU = 220
-    RADIO = 10
-    MARGEN = 20
+    ANCHO_MENU = 200
+    RADIO = 2
+    MARGEN = 16
 
     @staticmethod
     def aplicar() -> None:

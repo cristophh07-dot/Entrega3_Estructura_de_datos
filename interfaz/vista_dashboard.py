@@ -20,7 +20,7 @@ class VistaDashboard(ctk.CTkFrame):
     """
 
     # (título, llave de portafolio.resumen(), formato, ¿verde/rojo según el signo?)
-    TARJETAS = [
+    INDICADORES = [
         ("Total invertido", "total_invertido", "pesos", False),
         ("Valor actual", "valor_actual", "pesos", False),
         ("Ganancia", "ganancia", "pesos", True),
@@ -53,11 +53,13 @@ class VistaDashboard(ctk.CTkFrame):
         self._graficas = {}   # nombre -> (figura, ejes, lienzo)
 
         # El contenido va dentro de un marco con scroll porque no cabe en 760 px.
-        self._contenido = ctk.CTkScrollableFrame(self, fg_color=Tema.FONDO, corner_radius=0)
+        self._contenido = ctk.CTkScrollableFrame(
+            self, fg_color=Tema.FONDO, corner_radius=0,
+            scrollbar_button_color=Tema.BORDE, scrollbar_button_hover_color=Tema.TEXTO_SECUNDARIO)
         self._contenido.pack(fill="both", expand=True)
 
         self._construir_encabezado()
-        self._construir_tarjetas()
+        self._construir_indicadores()
         self._construir_fila_graficas()
         self._construir_fila_inferior()
         self._construir_tabla_posiciones()
@@ -75,46 +77,52 @@ class VistaDashboard(ctk.CTkFrame):
         self._estado.grid(row=1, column=0, sticky="w")
 
         self._boton = ctk.CTkButton(
-            marco, text="Actualizar precios", font=Tema.FUENTE_NORMAL, height=40,
-            corner_radius=Tema.RADIO, fg_color=Tema.ACENTO, hover_color=Tema.ACENTO_HOVER,
-            text_color=Tema.TEXTO_SOBRE_ACENTO, command=self._actualizar_precios,
+            marco, text="Actualizar precios", font=Tema.FUENTE_NORMAL, height=34, width=150,
+            corner_radius=Tema.RADIO, fg_color="transparent", border_width=1,
+            border_color=Tema.ACENTO, text_color=Tema.ACENTO, hover_color=Tema.HOVER,
+            text_color_disabled=Tema.TEXTO_SECUNDARIO, command=self._actualizar_precios,
         )
         self._boton.grid(row=0, column=1, rowspan=2, sticky="e")
 
-    def _construir_tarjetas(self) -> None:
-        fila = ctk.CTkFrame(self._contenido, fg_color="transparent")
-        fila.pack(fill="x", padx=Tema.MARGEN, pady=(0, 14))
-        for columna, (titulo, llave, _, _) in enumerate(self.TARJETAS):
-            fila.grid_columnconfigure(columna, weight=1, uniform="tarjetas")
-            tarjeta = ctk.CTkFrame(fila, fg_color=Tema.TARJETA, corner_radius=Tema.RADIO)
-            tarjeta.grid(row=0, column=columna, sticky="nsew",
-                         padx=(0 if columna == 0 else 7, 0 if columna == len(self.TARJETAS) - 1 else 7))
-            ctk.CTkLabel(tarjeta, text=titulo, font=Tema.FUENTE_PEQUENA,
-                         text_color=Tema.TEXTO_SECUNDARIO).pack(anchor="w", padx=16, pady=(14, 0))
-            valor = ctk.CTkLabel(tarjeta, text="-", font=Tema.FUENTE_TARJETA, text_color=Tema.TEXTO)
-            valor.pack(anchor="w", padx=16, pady=(2, 14))
+    def _construir_indicadores(self) -> None:
+        """Un solo panel con los cinco indicadores, separados por líneas verticales."""
+        banda = ctk.CTkFrame(self._contenido, fg_color=Tema.TARJETA, corner_radius=Tema.RADIO,
+                             border_width=1, border_color=Tema.BORDE)
+        banda.pack(fill="x", padx=Tema.MARGEN, pady=(0, 12))
+        for indice, (titulo, llave, _, _) in enumerate(self.INDICADORES):
+            columna = indice * 2  # las columnas impares son las líneas separadoras
+            banda.grid_columnconfigure(columna, weight=1, uniform="indicadores")
+            if indice:
+                ctk.CTkFrame(banda, width=1, height=1, fg_color=Tema.BORDE, corner_radius=0).grid(
+                    row=0, column=columna - 1, sticky="ns", pady=12)
+            celda = ctk.CTkFrame(banda, fg_color="transparent")
+            celda.grid(row=0, column=columna, sticky="nsew")
+            ctk.CTkLabel(celda, text=titulo, font=Tema.FUENTE_PEQUENA,
+                         text_color=Tema.TEXTO_SECUNDARIO).pack(anchor="w", padx=16, pady=(12, 0))
+            valor = ctk.CTkLabel(celda, text="-", font=Tema.FUENTE_TARJETA, text_color=Tema.TEXTO)
+            valor.pack(anchor="w", padx=16, pady=(2, 12))
             self._valores[llave] = valor
 
     def _construir_fila_graficas(self) -> None:
         fila = self._crear_fila(pesos=(1, 2))
         self._crear_grafica(fila, "distribucion", "Distribución", 3.2, 3.2).grid(
-            row=0, column=0, sticky="nsew", padx=(0, 7))
+            row=0, column=0, sticky="nsew", padx=(0, 6))
         self._crear_grafica(fila, "evolucion", "Valor del portafolio", 6.4, 3.2).grid(
-            row=0, column=1, sticky="nsew", padx=(7, 0))
+            row=0, column=1, sticky="nsew", padx=(6, 0))
 
     def _construir_fila_inferior(self) -> None:
         fila = self._crear_fila(pesos=(2, 3))
         self._crear_grafica(fila, "rentabilidad", "Rentabilidad por activo", 5, 3.2).grid(
-            row=0, column=0, sticky="nsew", padx=(0, 7))
+            row=0, column=0, sticky="nsew", padx=(0, 6))
 
-        tarjeta = self._crear_tarjeta(fila, "Próximos pagos")
-        tarjeta.grid(row=0, column=1, sticky="nsew", padx=(7, 0))
+        tarjeta = self._crear_panel(fila, "Próximos pagos")
+        tarjeta.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
         self._tabla_flujos = TablaDatos(tarjeta, self.COLUMNAS_FLUJOS, altura=7)
         self._tabla_flujos.pack(fill="both", expand=True, padx=12, pady=(8, 14))
 
     def _construir_tabla_posiciones(self) -> None:
         fila = self._crear_fila(pesos=(1,))
-        tarjeta = self._crear_tarjeta(fila, "Posiciones")
+        tarjeta = self._crear_panel(fila, "Posiciones")
         tarjeta.grid(row=0, column=0, sticky="nsew")
         self._tabla_posiciones = TablaDatos(tarjeta, self.COLUMNAS_POSICIONES, altura=8)
         self._tabla_posiciones.pack(fill="both", expand=True, padx=12, pady=(8, 14))
@@ -122,21 +130,24 @@ class VistaDashboard(ctk.CTkFrame):
     def _crear_fila(self, pesos) -> ctk.CTkFrame:
         """Fila con columnas de proporción fija (1 y 2 = la segunda ocupa el doble)."""
         fila = ctk.CTkFrame(self._contenido, fg_color="transparent")
-        fila.pack(fill="x", padx=Tema.MARGEN, pady=(0, 14))
+        fila.pack(fill="x", padx=Tema.MARGEN, pady=(0, 12))
         for columna, peso in enumerate(pesos):
             fila.grid_columnconfigure(columna, weight=peso, uniform="fila")
         return fila
 
     @staticmethod
-    def _crear_tarjeta(master, titulo: str) -> ctk.CTkFrame:
-        tarjeta = ctk.CTkFrame(master, fg_color=Tema.TARJETA, corner_radius=Tema.RADIO)
-        ctk.CTkLabel(tarjeta, text=titulo, font=Tema.FUENTE_SUBTITULO,
-                     text_color=Tema.TEXTO).pack(anchor="w", padx=16, pady=(14, 0))
-        return tarjeta
+    def _crear_panel(master, titulo: str) -> ctk.CTkFrame:
+        """Panel plano con borde de 1 px y el título separado por una línea fina."""
+        panel = ctk.CTkFrame(master, fg_color=Tema.TARJETA, corner_radius=Tema.RADIO,
+                             border_width=1, border_color=Tema.BORDE)
+        ctk.CTkLabel(panel, text=titulo, font=Tema.FUENTE_SUBTITULO,
+                     text_color=Tema.TEXTO).pack(anchor="w", padx=16, pady=(12, 10))
+        ctk.CTkFrame(panel, height=1, fg_color=Tema.BORDE, corner_radius=0).pack(fill="x")
+        return panel
 
     def _crear_grafica(self, master, nombre: str, titulo: str, ancho: float, alto: float):
         """Tarjeta con una figura de matplotlib incrustada (FigureCanvasTkAgg)."""
-        tarjeta = self._crear_tarjeta(master, titulo)
+        tarjeta = self._crear_panel(master, titulo)
         figura = Figure(figsize=(ancho, alto), dpi=100, facecolor=Tema.TARJETA, layout="constrained")
         ejes = figura.add_subplot(111)
         lienzo = FigureCanvasTkAgg(figura, master=tarjeta)
@@ -179,7 +190,7 @@ class VistaDashboard(ctk.CTkFrame):
 
     def _actualizar_tarjetas(self) -> None:
         resumen = self.portafolio.resumen()
-        for _, llave, formato, con_signo in self.TARJETAS:
+        for _, llave, formato, con_signo in self.INDICADORES:
             valor = resumen[llave]
             texto = Tema.pesos(valor) if formato == "pesos" else Tema.porcentaje(valor)
             color = Tema.color_signo(valor) if con_signo else Tema.TEXTO
@@ -225,8 +236,12 @@ class VistaDashboard(ctk.CTkFrame):
         else:
             trozos, _ = ejes.pie(
                 valores, colors=[Tema.RENTA_FIJA, Tema.RENTA_VARIABLE], startangle=90,
-                counterclock=False, wedgeprops={"width": 0.45, "edgecolor": Tema.TARJETA, "linewidth": 2},
+                counterclock=False, wedgeprops={"width": 0.3, "edgecolor": Tema.TARJETA, "linewidth": 3},
             )
+            ejes.text(0, 0.12, "Valor actual", ha="center", va="center",
+                      color=Tema.TEXTO_SECUNDARIO, fontsize=8)
+            ejes.text(0, -0.1, Tema.pesos(sum(valores)), ha="center", va="center",
+                      color=Tema.TEXTO, fontsize=10, fontweight="bold")
             # Los porcentajes van en la leyenda: no caben dentro del aro.
             etiquetas = [
                 f"Renta fija: {Tema.porcentaje(distribucion['renta_fija']['porcentaje'])}",
@@ -242,7 +257,9 @@ class VistaDashboard(ctk.CTkFrame):
         if serie is None or serie.empty:
             self._mensaje_vacio(ejes)
         else:
-            ejes.plot(serie["fecha"], serie["valor"], color=Tema.ACENTO, linewidth=2)
+            ejes.plot(serie["fecha"], serie["valor"], color=Tema.TEXTO, linewidth=1.6)
+            ejes.plot(serie["fecha"].iloc[-1], serie["valor"].iloc[-1], "o",
+                      color=Tema.ACENTO, markersize=5)  # el último valor lleva el acento
             ejes.yaxis.set_major_formatter(FuncFormatter(lambda v, _: self._millones(v)))
             ejes.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=6))
             ejes.xaxis.set_major_formatter(mdates.DateFormatter("%m/%Y"))
@@ -257,7 +274,7 @@ class VistaDashboard(ctk.CTkFrame):
         else:
             posiciones = posiciones.sort_values("rentabilidad")  # la mejor queda arriba
             rentabilidades = list(posiciones["rentabilidad"])
-            barras = ejes.barh(list(posiciones["nombre"]), rentabilidades, height=0.6,
+            barras = ejes.barh(list(posiciones["nombre"]), rentabilidades, height=0.55,
                                color=[Tema.color_signo(r) for r in rentabilidades])
             ejes.bar_label(barras, labels=[Tema.porcentaje(r) for r in rentabilidades],
                            padding=4, color=Tema.TEXTO, fontsize=8)

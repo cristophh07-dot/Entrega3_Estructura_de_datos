@@ -29,19 +29,21 @@ class VentanaPrincipal(ctk.CTk):
         self.repositorio = repositorio
         self.portafolio = portafolio
         self._vistas = {}    # nombre -> vista ya creada
-        self._botones = {}   # nombre -> botón del menú
+        self._botones = {}   # nombre -> (botón del menú, indicador de sección activa)
 
         self.title("Seguimiento de portafolio de inversión")
         self.geometry(f"{Tema.ANCHO_VENTANA}x{Tema.ALTO_VENTANA}")
         self.minsize(1100, 680)
 
-        # Columna 0: menú (ancho fijo). Columna 1: contenido (ocupa el resto).
-        self.grid_columnconfigure(1, weight=1)
+        # Columna 0: menú. Columna 1: línea separadora de 1 px. Columna 2: contenido.
+        self.grid_columnconfigure(2, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
         self._construir_menu()
+        ctk.CTkFrame(self, width=1, height=1, fg_color=Tema.BORDE, corner_radius=0).grid(
+            row=0, column=1, sticky="ns")
         self._area_contenido = ctk.CTkFrame(self, fg_color=Tema.FONDO, corner_radius=0)
-        self._area_contenido.grid(row=0, column=1, sticky="nsew")
+        self._area_contenido.grid(row=0, column=2, sticky="nsew")
         self._area_contenido.grid_columnconfigure(0, weight=1)
         self._area_contenido.grid_rowconfigure(0, weight=1)
 
@@ -53,19 +55,25 @@ class VentanaPrincipal(ctk.CTk):
         menu.pack_propagate(False)  # mantiene el ancho fijo aunque tenga hijos
 
         ctk.CTkLabel(menu, text="Portafolio", font=Tema.FUENTE_TITULO,
-                     text_color=Tema.ACENTO).pack(anchor="w", padx=24, pady=(28, 0))
+                     text_color=Tema.TEXTO).pack(anchor="w", padx=20, pady=(24, 0))
         ctk.CTkLabel(menu, text="Renta fija y renta variable", font=Tema.FUENTE_PEQUENA,
-                     text_color=Tema.TEXTO_SECUNDARIO).pack(anchor="w", padx=24, pady=(0, 28))
+                     text_color=Tema.TEXTO_SECUNDARIO).pack(anchor="w", padx=20, pady=(0, 20))
+        ctk.CTkFrame(menu, height=1, fg_color=Tema.BORDE, corner_radius=0).pack(fill="x", pady=(0, 10))
 
         for nombre, _, _ in self.SECCIONES:
+            fila = ctk.CTkFrame(menu, fg_color="transparent", corner_radius=0)
+            fila.pack(fill="x", pady=1)
+            # Franja de 3 px a la izquierda: se pinta con el acento en la sección activa.
+            indicador = ctk.CTkFrame(fila, width=3, height=1, fg_color="transparent", corner_radius=0)
+            indicador.pack(side="left", fill="y")
             boton = ctk.CTkButton(
-                menu, text=nombre, anchor="w", height=42, font=Tema.FUENTE_MENU,
-                corner_radius=Tema.RADIO, fg_color="transparent",
-                hover_color=Tema.TARJETA, text_color=Tema.TEXTO_SECUNDARIO,
+                fila, text=nombre, anchor="w", height=40, font=Tema.FUENTE_MENU,
+                corner_radius=0, fg_color="transparent", hover_color=Tema.HOVER, border_spacing=14,
+                text_color=Tema.TEXTO_SECUNDARIO,
                 command=lambda n=nombre: self.mostrar_vista(n),
             )
-            boton.pack(fill="x", padx=14, pady=3)
-            self._botones[nombre] = boton
+            boton.pack(side="left", fill="x", expand=True)
+            self._botones[nombre] = (boton, indicador)
 
     def mostrar_vista(self, nombre: str) -> None:
         """Cambia a la vista indicada, creándola si es la primera vez."""
@@ -104,8 +112,10 @@ class VentanaPrincipal(ctk.CTk):
         return marco
 
     def _marcar_boton_activo(self, activo: str) -> None:
-        for nombre, boton in self._botones.items():
+        for nombre, (boton, indicador) in self._botones.items():
             if nombre == activo:
-                boton.configure(fg_color=Tema.TARJETA, text_color=Tema.ACENTO)
+                boton.configure(fg_color=Tema.HOVER, text_color=Tema.TEXTO)
+                indicador.configure(fg_color=Tema.ACENTO)
             else:
                 boton.configure(fg_color="transparent", text_color=Tema.TEXTO_SECUNDARIO)
+                indicador.configure(fg_color="transparent")

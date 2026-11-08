@@ -102,6 +102,25 @@ class Portafolio:
         if moneda not in self.MONEDAS:
             raise ValueError(f"moneda debe ser 'COP' o 'USD' (recibido: {moneda!r})")
 
+    def precio_sugerido(self, activo, fecha=None):
+        """Precio de mercado por unidad, en COP, para prellenar el formulario de operaciones.
+        - Acción: último cierre en o antes de 'fecha' (hoy: precio actual).
+        - CDT, bono o TES: su valor por título en esa fecha (causación o descuento).
+        Devuelve None si no hay dato (sin internet, título vencido o fecha sin precios)."""
+        fecha = fecha or self.hoy
+        if activo.es_renta_fija():
+            precio = self.valorador_rf.precio(activo, fecha)
+            return precio if precio > 0 else None
+        if fecha >= self.hoy:
+            return self.valorador_rv.precio_actual(activo.ticker)
+        if fecha >= self._inicio():   # mismo historial que usa la gráfica (ya descargado)
+            return self.valorador_rv.precio_en_fecha(activo.ticker, fecha, self._inicio())
+        df = self.servicio_precios.historial(activo.ticker, fecha - timedelta(days=10))
+        if df is None or df.empty:
+            return None
+        anteriores = df[df["fecha"] <= fecha]
+        return float(anteriores.iloc[-1]["precio"]) if not anteriores.empty else None
+    
     def trm_en(self, fecha=None):
         """TRM (pesos por dólar) de una fecha; hoy si no se indica.
         La interfaz la usa para convertir a COP los precios que se escriben en USD."""
@@ -134,10 +153,20 @@ class Portafolio:
     # Métodos del contrato
     # ------------------------------------------------------------------
     def resumen(self, moneda="COP"):
+        """Totales y rentabilidad. La ganancia se separa en tres partes que suman exacto:
+          ganancia = ganancia_no_realizada + ganancia_realizada + ingresos
+          - no realizada: valor hoy − costo de lo que AÚN se tiene (valorización)
+          - realizada:    lo recibido en ventas − lo que había costado lo vendido
+          - ingresos:     dividendos e intereses netos de retención"""
         self._validar(moneda)
         operaciones, flujos = self._movimientos(moneda)
         valor_actual = sum(self._valores.values()) * self._factor_hoy(moneda)
-        return self.calculadora.calcular(operaciones, flujos, valor_actual, self.hoy)
+        datos = self.calculadora.calcular(operaciones, flujos, valor_actual, self.hoy)
+        posiciones = [Posicion(a, operaciones) for a in self._activos]
+        costo_vigente = sum(p.costo_total for p in posiciones)
+        datos["ganancia_realizada"] = sum(p.ganancia_realizada for p in posiciones)
+        datos["ganancia_no_realizada"] = valor_actual - costo_vigente
+        return datos
 
     def distribucion(self, moneda="COP"):
         self._validar(moneda)

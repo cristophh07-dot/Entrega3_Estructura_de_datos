@@ -45,6 +45,35 @@ class TestPortafolio(unittest.TestCase):
         self.assertAlmostEqual(self.p.posiciones()["ganancia"].sum(),
                                self.p.resumen()["ganancia"], places=2)
 
+    def test_ganancia_se_separa_en_tres_partes(self):
+        for moneda in ("COP", "USD"):
+            r = self.p.resumen(moneda)
+            partes = r["ganancia_no_realizada"] + r["ganancia_realizada"] + r["ingresos"]
+            self.assertAlmostEqual(partes, r["ganancia"], places=4)
+        # Apple: vendió 3 a 1.020.000 (−10.000 comisión); costaban 951.500 c/u
+        self.assertAlmostEqual(self.p.resumen()["ganancia_realizada"], 3_050_000 - 2_854_500)
+
+    def test_mock_tambien_separa_la_ganancia(self):
+        r = PortafolioMock().resumen()
+        partes = r["ganancia_no_realizada"] + r["ganancia_realizada"] + r["ingresos"]
+        self.assertAlmostEqual(partes, r["ganancia"], places=4)
+
+    def test_precio_sugerido(self):
+        activos = {a.nombre: a for a in self.p.repositorio.listar_activos()}
+        self.assertAlmostEqual(self.p.precio_sugerido(activos["Nike"]), 278_800)
+        pasado = self.p.precio_sugerido(activos["Coca-Cola"], date(2026, 10, 3))   # sábado
+        viernes = self.p.precio_sugerido(activos["Coca-Cola"], date(2026, 10, 2))
+        self.assertIsNotNone(viernes)
+        self.assertEqual(pasado, viernes)
+        cdt = self.p.precio_sugerido(activos["CDT Banco 360 días"], date(2026, 8, 3))
+        self.assertAlmostEqual(cdt, 5_000_000 * 1.105 ** (182 / 365))
+        self.assertIsNone(self.p.precio_sugerido(activos["CDT Banco 360 días"], date(2027, 3, 1)))
+
+    def test_mock_sugiere_precio(self):
+        m = PortafolioMock()
+        nike = [a for a in self.p.repositorio.listar_activos() if a.nombre == "Nike"][0]
+        self.assertEqual(m.precio_sugerido(nike), 278_800)
+        
     def test_serie_valor_termina_hoy(self):
         serie = self.p.serie_valor(date(2026, 10, 1))
         self.assertEqual(serie["fecha"].iloc[-1], HOY)

@@ -29,11 +29,17 @@ class PortafolioMock:
     def actualizar(self):
         """En el real recalcula todo; aquí no hace nada."""
         return None
-    
-    def trm_en(self, fecha=None):
-        """TRM fija de ejemplo (en el real es la TRM histórica de esa fecha)."""
-        return self.TRM
 
+        # Precios de ejemplo en COP por unidad (los mismos de ServicioPreciosMock)
+    _PRECIOS_SUGERIDOS = {"AAPL": 1_045_000.0, "ECOPETROL": 2_380.0,
+                          "NKE": 278_800.0, "KO": 295_200.0}
+
+    def precio_sugerido(self, activo, fecha=None):
+        """Precio de ejemplo para prellenar el formulario (en el real es el de mercado)."""
+        if activo.es_renta_fija():
+            return float(activo.valor_nominal)
+        return self._PRECIOS_SUGERIDOS.get(getattr(activo, "ticker", None))
+    
     def _factor(self, moneda):
         if moneda not in ("COP", "USD"):
             raise ValueError(f"moneda debe ser 'COP' o 'USD' (recibido: {moneda!r})")
@@ -69,6 +75,8 @@ class PortafolioMock:
         valor_actual = pos["valor_actual"].sum()
         ingresos = pos["ingresos"].sum()
         ganancia = valor_actual + self.VENTAS + ingresos - total_invertido
+        realizada = self.VENTAS - self.COSTO_VENDIDO
+        no_realizada = valor_actual - pos["costo_total"].sum()
         return {
             "total_invertido": float(total_invertido) * f,
             "ventas": self.VENTAS * f,
@@ -76,10 +84,12 @@ class PortafolioMock:
             "comisiones": self.COMISIONES * f,
             "valor_actual": float(valor_actual) * f,
             "ganancia": float(ganancia) * f,
+            "ganancia_realizada": float(realizada) * f,
+            "ganancia_no_realizada": float(no_realizada) * f,
             "rentabilidad_acumulada": float(ganancia / total_invertido),
             "rentabilidad_ea": 0.0751 if moneda == "COP" else 0.0928,  # valores fijos de ejemplo
         }
-
+    
     def distribucion(self, moneda="COP"):
         pos = self.posiciones(moneda)
         rv = float(pos.loc[pos["tipo"] == "ACCION", "valor_actual"].sum())

@@ -56,14 +56,23 @@ class TablaDatos(ctk.CTkFrame):
         )
         estilo.map(
             "Tema.Treeview",
-            background=[("selected", Tema.HOVER)], foreground=[("selected", Tema.TEXTO)],
+            background=[("selected", Tema.BORDE)], foreground=[("selected", Tema.ACENTO)],
         )
         estilo.map("Tema.Treeview.Heading", background=[("active", Tema.TARJETA)])
         estilo.layout("Tema.Treeview", [("Treeview.treearea", {"sticky": "nswe"})])
 
-    def cargar(self, filas) -> None:
-        """Reemplaza el contenido. Cada fila es una lista de textos, en el orden de las columnas."""
+    def cargar(self, filas, ids=None) -> None:
+        """Reemplaza el contenido. Cada fila es una lista de textos, en el orden de las columnas.
+
+        Si se pasan 'ids' (uno por fila), cada fila se identifica con el suyo y se
+        puede recuperar con seleccionado().
+        """
         self._arbol.delete(*self._arbol.get_children())
         for indice, fila in enumerate(filas):
-            self._arbol.insert("", "end", values=list(fila),
-                               tags=("par" if indice % 2 == 0 else "impar",))
+            self._arbol.insert("", "end", iid=None if ids is None else str(ids[indice]),
+                               values=list(fila), tags=("par" if indice % 2 == 0 else "impar",))
+
+    def seleccionado(self):
+        """El id (texto) de la fila seleccionada, o None si no hay ninguna."""
+        seleccion = self._arbol.selection()
+        return seleccion[0] if seleccion else None

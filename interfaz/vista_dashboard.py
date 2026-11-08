@@ -12,18 +12,20 @@ from interfaz.tema import Tema
 
 
 class VistaDashboard(ctk.CTkFrame):
-    """Resumen del portafolio: tarjetas, gráficas y tablas.
+    """Resumen del portafolio: indicadores, gráficas y tablas, en pesos o en dólares.
 
     Todo se dibuja en refrescar(), que la VentanaPrincipal llama cada vez que
-    se muestra esta vista. Los datos salen del portafolio (real o mock) y
-    nunca se calculan aquí: la vista solo los presenta.
+    se muestra esta vista. Los datos salen del portafolio (real o mock) y nunca
+    se calculan aquí: la vista solo los presenta. El selector COP/USD le pasa
+    moneda="COP" o "USD" a cada método del portafolio; en USD el motor convierte
+    cada movimiento con la TRM de su fecha.
     """
 
     # (título, llave de portafolio.resumen(), formato, ¿verde/rojo según el signo?)
     INDICADORES = [
-        ("Total invertido", "total_invertido", "pesos", False),
-        ("Valor actual", "valor_actual", "pesos", False),
-        ("Ganancia", "ganancia", "pesos", True),
+        ("Total invertido", "total_invertido", "dinero", False),
+        ("Valor actual", "valor_actual", "dinero", False),
+        ("Ganancia", "ganancia", "dinero", True),
         ("Rentabilidad acumulada", "rentabilidad_acumulada", "porcentaje", True),
         ("Rentabilidad E.A.", "rentabilidad_ea", "porcentaje", True),
     ]
@@ -34,10 +36,11 @@ class VistaDashboard(ctk.CTkFrame):
     }
 
     COLUMNAS_POSICIONES = [
-        ("nombre", "Activo", 200, "w"), ("tipo", "Tipo", 70, "w"),
-        ("cantidad", "Cantidad", 95, "e"), ("costo", "Costo total", 115, "e"),
+        ("nombre", "Activo", 180, "w"), ("tipo", "Tipo", 65, "w"),
+        ("cantidad", "Cantidad", 80, "e"), ("costo", "Costo total", 115, "e"),
         ("valor", "Valor actual", 115, "e"), ("ingresos", "Ingresos", 100, "e"),
-        ("ganancia", "Ganancia", 120, "e"), ("rentabilidad", "Rentabilidad", 120, "e"),
+        ("ganancia", "Ganancia", 115, "e"), ("rentabilidad", "Rentab.", 85, "e"),
+        ("peso", "Peso", 75, "e"),
     ]
 
     COLUMNAS_FLUJOS = [
@@ -49,7 +52,8 @@ class VistaDashboard(ctk.CTkFrame):
         super().__init__(master, fg_color=Tema.FONDO, corner_radius=0)
         self.repositorio = repositorio
         self.portafolio = portafolio
-        self._valores = {}    # llave del resumen -> etiqueta con el valor de la tarjeta
+        self._moneda = "COP"
+        self._valores = {}    # llave del resumen -> etiqueta con el valor del indicador
         self._graficas = {}   # nombre -> (figura, ejes, lienzo)
 
         # El contenido va dentro de un marco con scroll porque no cabe en 760 px.
@@ -60,7 +64,8 @@ class VistaDashboard(ctk.CTkFrame):
 
         self._construir_encabezado()
         self._construir_indicadores()
-        self._construir_fila_graficas()
+        self._construir_fila_distribucion()
+        self._construir_fila_ingresos()
         self._construir_fila_inferior()
         self._construir_tabla_posiciones()
 
@@ -76,16 +81,24 @@ class VistaDashboard(ctk.CTkFrame):
                                     text_color=Tema.TEXTO_SECUNDARIO)
         self._estado.grid(row=1, column=0, sticky="w")
 
+        self._selector_moneda = ctk.CTkSegmentedButton(
+            marco, values=["COP", "USD"], command=self._cambiar_moneda, font=Tema.FUENTE_NORMAL,
+            width=130, height=34, corner_radius=Tema.RADIO, border_width=1, fg_color=Tema.BORDE,
+            selected_color=Tema.BORDE, selected_hover_color=Tema.BORDE,
+            unselected_color=Tema.FONDO, unselected_hover_color=Tema.HOVER, text_color=Tema.TEXTO)
+        self._selector_moneda.set("COP")
+        self._selector_moneda.grid(row=0, column=1, rowspan=2, sticky="e", padx=(0, 10))
+
         self._boton = ctk.CTkButton(
             marco, text="Actualizar precios", font=Tema.FUENTE_NORMAL, height=34, width=150,
             corner_radius=Tema.RADIO, fg_color="transparent", border_width=1,
             border_color=Tema.ACENTO, text_color=Tema.ACENTO, hover_color=Tema.HOVER,
             text_color_disabled=Tema.TEXTO_SECUNDARIO, command=self._actualizar_precios,
         )
-        self._boton.grid(row=0, column=1, rowspan=2, sticky="e")
+        self._boton.grid(row=0, column=2, rowspan=2, sticky="e")
 
     def _construir_indicadores(self) -> None:
-        """Un solo panel con los cinco indicadores, separados por líneas verticales."""
+        """Un solo panel con los indicadores, separados por líneas verticales."""
         banda = ctk.CTkFrame(self._contenido, fg_color=Tema.TARJETA, corner_radius=Tema.RADIO,
                              border_width=1, border_color=Tema.BORDE)
         banda.pack(fill="x", padx=Tema.MARGEN, pady=(0, 12))
@@ -103,11 +116,18 @@ class VistaDashboard(ctk.CTkFrame):
             valor.pack(anchor="w", padx=16, pady=(2, 12))
             self._valores[llave] = valor
 
-    def _construir_fila_graficas(self) -> None:
+    def _construir_fila_distribucion(self) -> None:
         fila = self._crear_fila(pesos=(1, 2))
-        self._crear_grafica(fila, "distribucion", "Distribución", 3.2, 3.2).grid(
+        self._crear_grafica(fila, "distribucion", "Cómo está repartido el portafolio", 3.2, 3.2).grid(
             row=0, column=0, sticky="nsew", padx=(0, 6))
         self._crear_grafica(fila, "evolucion", "Valor del portafolio", 6.4, 3.2).grid(
+            row=0, column=1, sticky="nsew", padx=(6, 0))
+
+    def _construir_fila_ingresos(self) -> None:
+        fila = self._crear_fila(pesos=(1, 2))
+        self._crear_grafica(fila, "ingresos", "Ingresos recibidos", 3.2, 3.2).grid(
+            row=0, column=0, sticky="nsew", padx=(0, 6))
+        self._crear_grafica(fila, "dividendos", "Dividendos por acción", 6.4, 3.2).grid(
             row=0, column=1, sticky="nsew", padx=(6, 0))
 
     def _construir_fila_inferior(self) -> None:
@@ -115,16 +135,16 @@ class VistaDashboard(ctk.CTkFrame):
         self._crear_grafica(fila, "rentabilidad", "Rentabilidad por activo", 5, 3.2).grid(
             row=0, column=0, sticky="nsew", padx=(0, 6))
 
-        tarjeta = self._crear_panel(fila, "Próximos pagos")
-        tarjeta.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
-        self._tabla_flujos = TablaDatos(tarjeta, self.COLUMNAS_FLUJOS, altura=7)
+        panel = self._crear_panel(fila, "Próximos pagos")
+        panel.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+        self._tabla_flujos = TablaDatos(panel, self.COLUMNAS_FLUJOS, altura=7)
         self._tabla_flujos.pack(fill="both", expand=True, padx=12, pady=(8, 14))
 
     def _construir_tabla_posiciones(self) -> None:
         fila = self._crear_fila(pesos=(1,))
-        tarjeta = self._crear_panel(fila, "Posiciones")
-        tarjeta.grid(row=0, column=0, sticky="nsew")
-        self._tabla_posiciones = TablaDatos(tarjeta, self.COLUMNAS_POSICIONES, altura=8)
+        panel = self._crear_panel(fila, "Posiciones")
+        panel.grid(row=0, column=0, sticky="nsew")
+        self._tabla_posiciones = TablaDatos(panel, self.COLUMNAS_POSICIONES, altura=8)
         self._tabla_posiciones.pack(fill="both", expand=True, padx=12, pady=(8, 14))
 
     def _crear_fila(self, pesos) -> ctk.CTkFrame:
@@ -146,30 +166,48 @@ class VistaDashboard(ctk.CTkFrame):
         return panel
 
     def _crear_grafica(self, master, nombre: str, titulo: str, ancho: float, alto: float):
-        """Tarjeta con una figura de matplotlib incrustada (FigureCanvasTkAgg)."""
-        tarjeta = self._crear_panel(master, titulo)
+        """Panel con una figura de matplotlib incrustada (FigureCanvasTkAgg)."""
+        panel = self._crear_panel(master, titulo)
         figura = Figure(figsize=(ancho, alto), dpi=100, facecolor=Tema.TARJETA, layout="constrained")
         ejes = figura.add_subplot(111)
-        lienzo = FigureCanvasTkAgg(figura, master=tarjeta)
+        lienzo = FigureCanvasTkAgg(figura, master=panel)
         widget = lienzo.get_tk_widget()
         widget.configure(bg=Tema.TARJETA, highlightthickness=0)
         widget.pack(fill="both", expand=True, padx=8, pady=(0, 8))
         self._graficas[nombre] = (figura, ejes, lienzo)
-        return tarjeta
+        return panel
 
     # ------------------------------------------------------------------ actualización
     def refrescar(self) -> None:
-        """Lee el portafolio y redibuja todo. Un error se muestra en pantalla, no cierra el programa."""
+        """Lee el portafolio una sola vez y redibuja todo. Un error se muestra en pantalla, no cierra el programa."""
         try:
-            self._actualizar_tarjetas()
-            self._dibujar_distribucion()
-            self._dibujar_evolucion()
-            self._dibujar_rentabilidad()
-            self._llenar_tablas()
-            self._mostrar_estado(f"Datos al día. Revisado a las {datetime.now():%H:%M}")
+            datos = self._leer_datos()
+            self._actualizar_indicadores(datos["resumen"])
+            self._dibujar_distribucion(datos["distribucion"])
+            self._dibujar_evolucion(datos["serie"])
+            self._dibujar_ingresos(datos["posiciones"])
+            self._dibujar_dividendos(datos["posiciones"])
+            self._dibujar_rentabilidad(datos["posiciones"])
+            self._llenar_tablas(datos["posiciones"], datos["flujos"])
+            nota = " Valores en dólares con la TRM de cada fecha." if self._moneda == "USD" else ""
+            self._mostrar_estado(f"Datos al día. Revisado a las {datetime.now():%H:%M}.{nota}")
         except Exception as error:  # noqa: BLE001 - la interfaz no debe caerse
             traceback.print_exc()
             self._mostrar_estado(f"No se pudieron cargar los datos: {error}", error=True)
+
+    def _leer_datos(self) -> dict:
+        moneda = self._moneda
+        return {
+            "resumen": self.portafolio.resumen(moneda=moneda),
+            "distribucion": self.portafolio.distribucion(moneda=moneda),
+            "posiciones": self.portafolio.posiciones(moneda=moneda),
+            "serie": self.portafolio.serie_valor(self._fecha_inicio(), moneda=moneda),
+            "flujos": self.portafolio.proximos_flujos(moneda=moneda),
+        }
+
+    def _cambiar_moneda(self, moneda: str) -> None:
+        self._moneda = moneda
+        self.refrescar()
 
     def _actualizar_precios(self) -> None:
         self._boton.configure(state="disabled", text="Actualizando...")
@@ -188,11 +226,24 @@ class VistaDashboard(ctk.CTkFrame):
         self._estado.configure(text=texto,
                                text_color=Tema.PERDIDA if error else Tema.TEXTO_SECUNDARIO)
 
-    def _actualizar_tarjetas(self) -> None:
-        resumen = self.portafolio.resumen()
+    def _dinero(self, valor: float) -> str:
+        return Tema.dinero(valor, self._moneda)
+
+    def _abreviar(self, valor: float) -> str:
+        """Valor corto para los ejes: $ 45,0 M, US$ 12,5 mil."""
+        prefijo = "US$ " if self._moneda == "USD" else "$ "
+        if abs(valor) >= 1_000_000:
+            texto = f"{valor / 1_000_000:.1f} M"
+        elif abs(valor) >= 1_000:
+            texto = f"{valor / 1_000:.1f} mil"
+        else:
+            texto = f"{valor:.0f}"
+        return prefijo + texto.replace(".", ",")
+
+    def _actualizar_indicadores(self, resumen: dict) -> None:
         for _, llave, formato, con_signo in self.INDICADORES:
             valor = resumen[llave]
-            texto = Tema.pesos(valor) if formato == "pesos" else Tema.porcentaje(valor)
+            texto = self._dinero(valor) if formato == "dinero" else Tema.porcentaje(valor)
             color = Tema.color_signo(valor) if con_signo else Tema.TEXTO
             self._valores[llave].configure(text=texto, text_color=color)
 
@@ -218,57 +269,87 @@ class VistaDashboard(ctk.CTkFrame):
         return figura, ejes, lienzo
 
     @staticmethod
-    def _mensaje_vacio(ejes) -> None:
+    def _mensaje_vacio(ejes, texto: str = "Aún no hay datos para mostrar") -> None:
         ejes.set_axis_off()
-        ejes.text(0.5, 0.5, "Aún no hay datos para mostrar", ha="center", va="center",
+        ejes.text(0.5, 0.5, texto, ha="center", va="center",
                   color=Tema.TEXTO_SECUNDARIO, fontsize=10, transform=ejes.transAxes)
 
-    @staticmethod
-    def _millones(valor: float) -> str:
-        return f"$ {valor / 1_000_000:.1f}".replace(".", ",") + " M"
-
-    def _dibujar_distribucion(self) -> None:
-        figura, ejes, lienzo = self._preparar_ejes("distribucion")
-        distribucion = self.portafolio.distribucion()
-        valores = [distribucion["renta_fija"]["valor"], distribucion["renta_variable"]["valor"]]
-        if sum(valores) <= 0:
+    def _dibujar_aro(self, nombre: str, valores: list, colores: list, etiquetas: list,
+                     titulo_centro: str) -> None:
+        """Dona con el total al centro y la leyenda debajo. La usan 'distribucion' e 'ingresos'."""
+        figura, ejes, lienzo = self._preparar_ejes(nombre)
+        total = sum(valores)
+        if total <= 0:
             self._mensaje_vacio(ejes)
         else:
             trozos, _ = ejes.pie(
-                valores, colors=[Tema.RENTA_FIJA, Tema.RENTA_VARIABLE], startangle=90,
-                counterclock=False, wedgeprops={"width": 0.3, "edgecolor": Tema.TARJETA, "linewidth": 3},
-            )
-            ejes.text(0, 0.12, "Valor actual", ha="center", va="center",
+                valores, colors=colores, startangle=90, counterclock=False,
+                wedgeprops={"width": 0.3, "edgecolor": Tema.TARJETA, "linewidth": 3})
+            ejes.text(0, 0.12, titulo_centro, ha="center", va="center",
                       color=Tema.TEXTO_SECUNDARIO, fontsize=8)
-            ejes.text(0, -0.1, Tema.pesos(sum(valores)), ha="center", va="center",
+            ejes.text(0, -0.1, self._dinero(total), ha="center", va="center",
                       color=Tema.TEXTO, fontsize=10, fontweight="bold")
-            # Los porcentajes van en la leyenda: no caben dentro del aro.
-            etiquetas = [
-                f"Renta fija: {Tema.porcentaje(distribucion['renta_fija']['porcentaje'])}",
-                f"Renta variable: {Tema.porcentaje(distribucion['renta_variable']['porcentaje'])}",
-            ]
             figura.legend(trozos, etiquetas, loc="outside lower center", ncol=1, frameon=False,
                           labelcolor=Tema.TEXTO_SECUNDARIO, fontsize=9)
         lienzo.draw_idle()
 
-    def _dibujar_evolucion(self) -> None:
+    def _dibujar_distribucion(self, distribucion: dict) -> None:
+        fija, variable = distribucion["renta_fija"], distribucion["renta_variable"]
+        self._dibujar_aro(
+            "distribucion", [fija["valor"], variable["valor"]],
+            [Tema.RENTA_FIJA, Tema.RENTA_VARIABLE],
+            [f"Renta fija: {Tema.porcentaje(fija['porcentaje'])}",
+             f"Renta variable: {Tema.porcentaje(variable['porcentaje'])}"],
+            "Valor actual")
+
+    @staticmethod
+    def _ingresos_por_tipo(posiciones) -> tuple:
+        """(dividendos, intereses): los ingresos de las acciones y los de la renta fija."""
+        acciones = posiciones["tipo"] == "ACCION"
+        return (float(posiciones.loc[acciones, "ingresos"].sum()),
+                float(posiciones.loc[~acciones, "ingresos"].sum()))
+
+    def _dibujar_ingresos(self, posiciones) -> None:
+        dividendos, intereses = self._ingresos_por_tipo(posiciones)
+        total = dividendos + intereses
+        porcentaje = lambda parte: Tema.porcentaje(parte / total) if total else Tema.porcentaje(0)
+        self._dibujar_aro(
+            "ingresos", [dividendos, intereses], [Tema.RENTA_VARIABLE, Tema.RENTA_FIJA],
+            [f"Dividendos: {self._dinero(dividendos)} ({porcentaje(dividendos)})",
+             f"Intereses: {self._dinero(intereses)} ({porcentaje(intereses)})"],
+            "Total recibido")
+
+    def _dibujar_dividendos(self, posiciones) -> None:
+        _, ejes, lienzo = self._preparar_ejes("dividendos")
+        acciones = posiciones[(posiciones["tipo"] == "ACCION") & (posiciones["ingresos"] > 0)]
+        if acciones.empty:
+            self._mensaje_vacio(ejes, "Aún no hay dividendos registrados")
+        else:
+            acciones = acciones.sort_values("ingresos")  # el que más pagó queda arriba
+            valores = [float(v) for v in acciones["ingresos"]]
+            barras = ejes.barh(list(acciones["nombre"]), valores, height=0.55, color=Tema.RENTA_VARIABLE)
+            ejes.bar_label(barras, labels=[self._dinero(v) for v in valores], padding=4,
+                           color=Tema.TEXTO, fontsize=8)
+            ejes.xaxis.set_major_formatter(FuncFormatter(lambda v, _: self._abreviar(v)))
+            ejes.margins(x=0.25)
+        lienzo.draw_idle()
+
+    def _dibujar_evolucion(self, serie) -> None:
         _, ejes, lienzo = self._preparar_ejes("evolucion")
-        serie = self.portafolio.serie_valor(self._fecha_inicio())
         if serie is None or serie.empty:
             self._mensaje_vacio(ejes)
         else:
             ejes.plot(serie["fecha"], serie["valor"], color=Tema.TEXTO, linewidth=1.6)
             ejes.plot(serie["fecha"].iloc[-1], serie["valor"].iloc[-1], "o",
                       color=Tema.ACENTO, markersize=5)  # el último valor lleva el acento
-            ejes.yaxis.set_major_formatter(FuncFormatter(lambda v, _: self._millones(v)))
+            ejes.yaxis.set_major_formatter(FuncFormatter(lambda v, _: self._abreviar(v)))
             ejes.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=6))
             ejes.xaxis.set_major_formatter(mdates.DateFormatter("%m/%Y"))
             ejes.grid(axis="y", color=Tema.BORDE, linewidth=0.6)
         lienzo.draw_idle()
 
-    def _dibujar_rentabilidad(self) -> None:
+    def _dibujar_rentabilidad(self, posiciones) -> None:
         _, ejes, lienzo = self._preparar_ejes("rentabilidad")
-        posiciones = self.portafolio.posiciones()
         if posiciones.empty:
             self._mensaje_vacio(ejes)
         else:
@@ -284,18 +365,21 @@ class VistaDashboard(ctk.CTkFrame):
         lienzo.draw_idle()
 
     # ------------------------------------------------------------------ tablas
-    def _llenar_tablas(self) -> None:
+    def _llenar_tablas(self, posiciones, flujos) -> None:
+        total = float(posiciones["valor_actual"].sum()) if not posiciones.empty else 0.0
         filas = []
-        for _, p in self.portafolio.posiciones().iterrows():
+        for _, p in posiciones.iterrows():
+            peso = p["valor_actual"] / total if total > 0 else 0.0
             filas.append([
                 p["nombre"], self.NOMBRES_TIPO.get(p["tipo"], p["tipo"]), Tema.cantidad(p["cantidad"]),
-                Tema.pesos(p["costo_total"]), Tema.pesos(p["valor_actual"]), Tema.pesos(p["ingresos"]),
-                Tema.pesos(p["ganancia"]), Tema.porcentaje(p["rentabilidad"]),
+                self._dinero(p["costo_total"]), self._dinero(p["valor_actual"]),
+                self._dinero(p["ingresos"]), self._dinero(p["ganancia"]),
+                Tema.porcentaje(p["rentabilidad"]), Tema.porcentaje(peso),
             ])
         self._tabla_posiciones.cargar(filas)
 
         filas = []
-        for _, f in self.portafolio.proximos_flujos().iterrows():
+        for _, f in flujos.iterrows():
             filas.append([str(f["fecha"])[:10], f["nombre"],
-                          self.NOMBRES_TIPO.get(f["tipo"], f["tipo"]), Tema.pesos(f["valor"])])
+                          self.NOMBRES_TIPO.get(f["tipo"], f["tipo"]), self._dinero(f["valor"])])
         self._tabla_flujos.cargar(filas)

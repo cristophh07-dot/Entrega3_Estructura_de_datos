@@ -102,6 +102,11 @@ class Portafolio:
         if moneda not in self.MONEDAS:
             raise ValueError(f"moneda debe ser 'COP' o 'USD' (recibido: {moneda!r})")
 
+    def trm_en(self, fecha=None):
+        """TRM (pesos por dólar) de una fecha; hoy si no se indica.
+        La interfaz la usa para convertir a COP los precios que se escriben en USD."""
+        return self.conversor.trm_en(fecha or self.hoy)
+    
     def _factor_hoy(self, moneda):
         """Multiplica un valor de HOY en COP para pasarlo a la moneda pedida."""
         return 1.0 if moneda == "COP" else 1 / self.conversor.trm_en(self.hoy)

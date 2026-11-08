@@ -29,6 +29,10 @@ class PortafolioMock:
     def actualizar(self):
         """En el real recalcula todo; aquí no hace nada."""
         return None
+    
+    def trm_en(self, fecha=None):
+        """TRM fija de ejemplo (en el real es la TRM histórica de esa fecha)."""
+        return self.TRM
 
     def _factor(self, moneda):
         if moneda not in ("COP", "USD"):

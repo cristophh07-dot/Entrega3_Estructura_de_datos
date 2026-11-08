@@ -25,12 +25,14 @@ class ConversorMoneda:
         self._fechas = []     # fechas ordenadas con TRM conocida
         self._trms = []       # TRM de cada una de esas fechas
         self._trm_actual = None
+        self._desde = None    # desde qué fecha está cargado el historial
 
     def limpiar_cache(self):
-        self._fechas, self._trms, self._trm_actual = [], [], None
+        self._fechas, self._trms, self._trm_actual, self._desde = [], [], None, None
 
     def cargar(self, desde):
         """Descarga una sola vez el historial de la TRM desde 'desde'."""
+        self._desde = desde
         df = self.servicio_precios.historial(self.TICKER_TRM, desde)
         if df is not None and not df.empty:
             pares = sorted(zip(df["fecha"], df["precio"]))
@@ -44,6 +46,8 @@ class ConversorMoneda:
 
     def trm_en(self, fecha):
         """TRM del último día con dato en o antes de 'fecha'."""
+        if self._desde is None or fecha < self._desde:
+            self.cargar(fecha)           # trae el historial desde esa fecha si aún no lo tiene
         i = bisect_right(self._fechas, fecha)
         if i == 0:                       # no hay historial antes de esa fecha
             return self.trm_actual()

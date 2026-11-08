@@ -21,6 +21,7 @@ class Activo(ABC):
 
     @abstractmethod
     def es_renta_fija(self) -> bool:
+                   """True si el activo es de renta fija (CDT, bono o TES)."""
 
     def __str__(self) -> str:
         identificador = self.id if self.id is not None else "sin id"

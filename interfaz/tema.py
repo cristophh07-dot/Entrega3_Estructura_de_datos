@@ -73,6 +73,17 @@ class Tema:
         return f"{signo}$ {Tema._numero(abs(entero), 0)}"
 
     @staticmethod
+    def dolares(valor: float) -> str:
+        """1234.5 -> 'US$ 1.234,50'. Los negativos quedan '-US$ 1.234,50'."""
+        signo = "-" if round(valor, 2) < 0 else ""
+        return f"{signo}US$ {Tema._numero(abs(valor), 2)}"
+
+    @staticmethod
+    def dinero(valor: float, moneda: str = "COP") -> str:
+        """Formatea un valor en la moneda indicada ('COP' o 'USD')."""
+        return Tema.dolares(valor) if moneda == "USD" else Tema.pesos(valor)
+
+    @staticmethod
     def cantidad(valor: float) -> str:
         """Acciones o títulos: sin decimales si es entera (2000 -> '2.000')."""
         decimales = 0 if float(valor).is_integer() else 2

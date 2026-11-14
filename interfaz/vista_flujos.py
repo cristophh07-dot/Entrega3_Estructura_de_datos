@@ -32,7 +32,7 @@ class VistaFlujos(VistaBase):
         rejilla = self._crear_rejilla(cuerpo)
         self._crear_campo(rejilla, "activo", "Activo", valores=[self.SIN_ACTIVOS])
         self._crear_campo(rejilla, "tipo", "Tipo de flujo", valores=list(self.TIPOS))
-        self._crear_campo(rejilla, "fecha", "Fecha de pago", ayuda="AAAA-MM-DD")
+        self._crear_campo(rejilla, "fecha", "Fecha de pago", fecha=True, maximo=date.today())
         self._crear_campo(rejilla, "valor_bruto", "Valor bruto (COP)", ayuda="Ej. 270.000")
         self._crear_campo(rejilla, "retencion", "Retención en la fuente (%)", ayuda="Vacío = 0")
         self._colocar_campos(rejilla, ["activo", "tipo", "fecha", "valor_bruto", "retencion"])

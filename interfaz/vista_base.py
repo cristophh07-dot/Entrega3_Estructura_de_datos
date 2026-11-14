@@ -6,6 +6,7 @@ from tkinter import messagebox
 
 import customtkinter as ctk
 
+from interfaz.selector_fecha import SelectorFecha
 from interfaz.tabla_datos import TablaDatos
 from interfaz.tema import Tema
 
@@ -98,7 +99,7 @@ class VistaBase(ctk.CTkFrame, ABC):
     def _limpiar(self) -> None:
         """Vacía las entradas y quita los errores. Las subclases ponen sus valores por defecto."""
         for widget in self._widgets.values():
-            if isinstance(widget, ctk.CTkEntry):
+            if isinstance(widget, (ctk.CTkEntry, SelectorFecha)):
                 widget.delete(0, "end")
         self._marcar_errores({})
         self._mostrar_estado("")
@@ -159,12 +160,15 @@ class VistaBase(ctk.CTkFrame, ABC):
         return rejilla
 
     def _crear_campo(self, rejilla, clave: str, etiqueta: str, valores=None, ayuda: str = "",
-                     comando=None) -> None:
-        """Crea un campo (etiqueta + widget). Con 'valores' es un menú; sin ellos, una entrada de texto."""
+                     comando=None, fecha: bool = False, minimo=None, maximo=None) -> None:
+        """Crea un campo (etiqueta + widget). Con 'valores' es un menú; con fecha=True, un calendario
+        desplegable (comando se llama al elegir la fecha); si no, una entrada de texto."""
         marco = ctk.CTkFrame(rejilla, fg_color="transparent")
         ctk.CTkLabel(marco, text=etiqueta, font=Tema.FUENTE_PEQUENA,
                      text_color=Tema.TEXTO_SECUNDARIO).pack(anchor="w", pady=(0, 4))
-        if valores is None:
+        if fecha:
+            widget = SelectorFecha(marco, al_cambiar=comando, minimo=minimo, maximo=maximo)
+        elif valores is None:
             widget = ctk.CTkEntry(
                 marco, placeholder_text=ayuda, height=34, corner_radius=Tema.RADIO,
                 border_width=1, border_color=Tema.BORDE, fg_color=Tema.FONDO,
@@ -228,7 +232,7 @@ class VistaBase(ctk.CTkFrame, ABC):
 
     def _marcar_errores(self, errores: dict) -> None:
         for clave, widget in self._widgets.items():
-            if isinstance(widget, ctk.CTkEntry):
+            if isinstance(widget, (ctk.CTkEntry, SelectorFecha)):
                 widget.configure(border_color=Tema.PERDIDA if clave in errores else Tema.BORDE)
 
     # ------------------------------------------------------------------ lectura y validación
@@ -265,7 +269,7 @@ class VistaBase(ctk.CTkFrame, ABC):
         """Lee una fecha AAAA-MM-DD. Si hay error lo anota en 'errores' y devuelve None."""
         texto = self._leer_texto(clave)
         if not texto:
-            errores[clave] = f"{etiqueta}: este campo es obligatorio."
+            errores[clave] = f"{etiqueta}: elige una fecha en el calendario."
             return None
         try:
             return datetime.strptime(texto, "%Y-%m-%d").date()

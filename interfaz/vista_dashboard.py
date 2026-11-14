@@ -5,7 +5,9 @@ import customtkinter as ctk
 import matplotlib.dates as mdates
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
-from matplotlib.ticker import FuncFormatter
+from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
+from matplotlib.ticker import FuncFormatter, MaxNLocator
 
 from interfaz.tabla_datos import TablaDatos
 from interfaz.tema import Tema
@@ -43,6 +45,13 @@ class VistaDashboard(ctk.CTkFrame):
         ("peso", "Peso", 75, "e"),
     ]
 
+    # Las tres partes en que se separa la ganancia: (nombre, llave del portafolio, color)
+    PARTES_GANANCIA = [
+        ("Valorización", "ganancia_no_realizada", Tema.VALORIZACION),
+        ("Ventas", "ganancia_realizada", Tema.VENTAS),
+        ("Dividendos e intereses", "ingresos", Tema.RENDIMIENTOS),
+    ]
+
     COLUMNAS_FLUJOS = [
         ("fecha", "Fecha", 95, "w"), ("nombre", "Activo", 190, "w"),
         ("tipo", "Tipo", 90, "w"), ("valor", "Valor", 110, "e"),
@@ -64,6 +73,7 @@ class VistaDashboard(ctk.CTkFrame):
 
         self._construir_encabezado()
         self._construir_indicadores()
+        self._construir_fila_ganancia()
         self._construir_fila_distribucion()
         self._construir_fila_ingresos()
         self._construir_fila_inferior()
@@ -115,6 +125,14 @@ class VistaDashboard(ctk.CTkFrame):
             valor = ctk.CTkLabel(celda, text="-", font=Tema.FUENTE_TARJETA, text_color=Tema.TEXTO)
             valor.pack(anchor="w", padx=16, pady=(2, 12))
             self._valores[llave] = valor
+
+    def _construir_fila_ganancia(self) -> None:
+        """Justo debajo de las tarjetas: de dónde sale la ganancia y qué aporta cada activo."""
+        fila = self._crear_fila(pesos=(2, 3))
+        self._crear_grafica(fila, "origen_ganancia", "¿De dónde sale la ganancia?", 4.6, 3.6).grid(
+            row=0, column=0, sticky="nsew", padx=(0, 6))
+        self._crear_grafica(fila, "ganancia_activos", "Lo que aporta cada activo a la ganancia",
+                            6.9, 3.6).grid(row=0, column=1, sticky="nsew", padx=(6, 0))
 
     def _construir_fila_distribucion(self) -> None:
         fila = self._crear_fila(pesos=(1, 2))
@@ -183,6 +201,8 @@ class VistaDashboard(ctk.CTkFrame):
         try:
             datos = self._leer_datos()
             self._actualizar_indicadores(datos["resumen"])
+            self._dibujar_origen_ganancia(datos["resumen"])
+            self._dibujar_ganancia_activos(datos["posiciones"])
             self._dibujar_distribucion(datos["distribucion"])
             self._dibujar_evolucion(datos["serie"])
             self._dibujar_ingresos(datos["posiciones"])
@@ -332,6 +352,100 @@ class VistaDashboard(ctk.CTkFrame):
                            color=Tema.TEXTO, fontsize=8)
             ejes.xaxis.set_major_formatter(FuncFormatter(lambda v, _: self._abreviar(v)))
             ejes.margins(x=0.25)
+        lienzo.draw_idle()
+
+    def _con_signo(self, valor: float) -> str:
+        """+$ 1,9 M / -$ 33,2 mil: valor corto con su signo, para las etiquetas de las barras."""
+        texto = self._abreviar(abs(valor))
+        return ("-" if valor < 0 else "+") + texto
+
+    def _eje(self, valor: float) -> str:
+        """Etiqueta corta para los ejes: -$ 200 mil, $ 1,5 M (el signo va antes del $)."""
+        texto = self._abreviar(abs(valor)).replace(",0 ", " ")
+        return ("-" if valor < 0 else "") + texto
+
+    def _dibujar_origen_ganancia(self, resumen: dict) -> None:
+        """Gráfica de cascada: cada parte se apila sobre la anterior hasta llegar a la ganancia total."""
+        _, ejes, lienzo = self._preparar_ejes("origen_ganancia")
+        if any(llave not in resumen for _, llave, _ in self.PARTES_GANANCIA):
+            self._mensaje_vacio(ejes, "El portafolio no trae el desglose de la ganancia")
+            lienzo.draw_idle()
+            return
+        partes = [(nombre, float(resumen[llave]), color) for nombre, llave, color in self.PARTES_GANANCIA]
+        total = float(resumen["ganancia"])
+        nombres = [n.replace(" e ", "\ne ") for n, _, _ in partes] + ["Ganancia\ntotal"]
+        acumulado = 0.0
+        for x, (_, valor, color) in enumerate(partes):
+            base = acumulado if valor >= 0 else acumulado + valor
+            ejes.bar(x, abs(valor), bottom=base, width=0.62, color=color,
+                     edgecolor=Tema.TARJETA, linewidth=1.5)
+            arriba = base + abs(valor)
+            ejes.text(x, arriba, self._con_signo(valor), ha="center", va="bottom",
+                      color=Tema.TEXTO, fontsize=9, fontweight="bold")
+            if total > 0 and all(v >= 0 for _, v, _ in partes):
+                ejes.text(x, base + abs(valor) / 2, f"{valor / total * 100:.0f} %",
+                          ha="center", va="center", color=Tema.FONDO, fontsize=8)
+            nuevo = acumulado + valor
+            ejes.plot([x + 0.31, x + 0.69], [nuevo, nuevo], color=Tema.TEXTO_SECUNDARIO,
+                      linewidth=0.8, linestyle=(0, (2, 2)))  # conector hacia la siguiente barra
+            acumulado = nuevo
+        x_total = len(partes)
+        ejes.bar(x_total, abs(total), bottom=min(total, 0), width=0.62, color=Tema.TOTAL,
+                 edgecolor=Tema.TARJETA, linewidth=1.5)
+        ejes.text(x_total, max(total, 0), self._con_signo(total), ha="center", va="bottom",
+                  color=Tema.color_signo(total), fontsize=10, fontweight="bold")
+        ejes.axhline(0, color=Tema.BORDE, linewidth=1)
+        ejes.set_xticks(range(len(nombres)), nombres, fontsize=8.5, color=Tema.TEXTO)
+        ejes.yaxis.set_major_locator(MaxNLocator(nbins=5))
+        ejes.yaxis.set_major_formatter(FuncFormatter(lambda v, _: self._eje(v)))
+        ejes.grid(axis="y", color=Tema.BORDE, linewidth=0.6)
+        ejes.set_axisbelow(True)
+        ejes.margins(y=0.15)
+        lienzo.draw_idle()
+
+    def _dibujar_ganancia_activos(self, posiciones) -> None:
+        """Una barra por activo, partida en las tres partes. Lo positivo va a la derecha del cero,
+        lo negativo a la izquierda, y el rombo marca la ganancia neta del activo."""
+        figura, ejes, lienzo = self._preparar_ejes("ganancia_activos")
+        columnas = [llave for _, llave, _ in self.PARTES_GANANCIA]
+        if posiciones.empty or any(c not in posiciones for c in columnas):
+            self._mensaje_vacio(ejes, "El portafolio no trae el desglose por activo")
+            lienzo.draw_idle()
+            return
+        posiciones = posiciones.sort_values("ganancia")  # el que más aporta queda arriba
+        nombres = list(posiciones["nombre"])
+        for y, (_, fila) in enumerate(posiciones.iterrows()):
+            derecha = izquierda = 0.0
+            for _, llave, color in self.PARTES_GANANCIA:
+                valor = float(fila[llave])
+                if valor == 0:
+                    continue
+                inicio = derecha if valor > 0 else izquierda
+                ejes.barh(y, valor, left=inicio, height=0.58, color=color,
+                          edgecolor=Tema.TARJETA, linewidth=1.5)
+                if valor > 0:
+                    derecha += valor
+                else:
+                    izquierda += valor
+            neta = float(fila["ganancia"])
+            ejes.plot(neta, y, marker="D", markersize=5, color=Tema.TEXTO,
+                      markeredgecolor=Tema.TARJETA, markeredgewidth=1, zorder=3)
+            borde = derecha if neta >= 0 else izquierda
+            ejes.text(borde, y, f"  {self._con_signo(neta)}  " if neta >= 0 else f"{self._con_signo(neta)}  ",
+                      ha="left" if neta >= 0 else "right", va="center",
+                      color=Tema.TEXTO, fontsize=8)
+        ejes.set_yticks(range(len(nombres)), nombres, fontsize=8.5, color=Tema.TEXTO)
+        ejes.axvline(0, color=Tema.TEXTO_SECUNDARIO, linewidth=1)
+        ejes.xaxis.set_major_locator(MaxNLocator(nbins=5))
+        ejes.xaxis.set_major_formatter(FuncFormatter(lambda v, _: self._eje(v)))
+        ejes.grid(axis="x", color=Tema.BORDE, linewidth=0.6)
+        ejes.set_axisbelow(True)
+        ejes.margins(x=0.18)
+        leyenda = [Patch(color=c, label=n) for n, _, c in self.PARTES_GANANCIA]
+        leyenda.append(Line2D([], [], marker="D", linestyle="", color=Tema.TEXTO,
+                              markersize=5, label="Ganancia neta"))
+        figura.legend(handles=leyenda, loc="outside lower center", ncol=4, frameon=False,
+                      labelcolor=Tema.TEXTO_SECUNDARIO, fontsize=8.5, handlelength=1.2)
         lienzo.draw_idle()
 
     def _dibujar_evolucion(self, serie) -> None:

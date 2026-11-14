@@ -34,6 +34,12 @@ class Tema:
     RENTA_FIJA = "#6F7886"
     RENTA_VARIABLE = "#E0A23A"
 
+    # Las tres partes de la ganancia (paleta validada para daltonismo sobre TARJETA)
+    VALORIZACION = "#3987E5"   # lo que han subido o bajado los activos que aún se tienen
+    VENTAS = "#D95926"         # lo ganado en lo que ya se vendió
+    RENDIMIENTOS = "#199E70"   # dividendos e intereses recibidos
+    TOTAL = "#8A8E97"          # barra del total: neutra, el color lo llevan las partes
+
     # ---- Fuentes (familia, tamaño, peso) ----
     FAMILIA = "Segoe UI"
     FAMILIA_NEGRITA = "Segoe UI Semibold"

@@ -30,7 +30,52 @@ class PortafolioMock:
         """En el real recalcula todo; aquí no hace nada."""
         return None
 
-        # Precios de ejemplo en COP por unidad (los mismos de ServicioPreciosMock)
+        # Acciones de ejemplo para la gráfica de velas: id -> (ticker, moneda original)
+    _ACCIONES = {1: ("AAPL", "USD"), 2: ("ECOPETROL", "COP"), 6: ("NKE", "USD"), 7: ("KO", "USD")}
+    # Operaciones de ejemplo en COP por acción: id -> [(fecha, tipo, cantidad, precio)]
+    _OPERACIONES = {
+        1: [(date(2026, 1, 15), "COMPRA", 10, 950_000.0), (date(2026, 8, 20), "VENTA", 3, 1_020_000.0)],
+        2: [(date(2026, 1, 20), "COMPRA", 2_000, 2_150.0)],
+        6: [(date(2026, 2, 10), "COMPRA", 20, 290_000.0)],
+        7: [(date(2026, 2, 12), "COMPRA", 30, 287_000.0)],
+    }
+
+    def grafica_accion(self, activo_id, desde, moneda="USD"):
+        """Velas de ejemplo con la misma forma que Portafolio.grafica_accion (TRM fija de 4.100)."""
+        from mocks.servicio_velas_mock import ServicioVelasMock
+        f = self._factor(moneda)
+        if activo_id not in self._ACCIONES:
+            raise ValueError("La gráfica de velas es solo para acciones")
+        ticker, nativa = self._ACCIONES[activo_id]
+        velas = ServicioVelasMock().velas(ticker, desde)
+        a_cop = self.TRM if nativa == "USD" else 1.0     # moneda original -> COP
+        for columna in ("apertura", "maximo", "minimo", "cierre"):
+            velas[columna] = velas[columna] * a_cop * f
+        semanal = len(velas) > 130
+        if semanal:
+            semana = pd.to_datetime(velas["fecha"]).dt.to_period("W")
+            g = velas.groupby(semana)
+            velas = pd.DataFrame({"fecha": g["fecha"].first().values,
+                                  "apertura": g["apertura"].first().values,
+                                  "maximo": g["maximo"].max().values,
+                                  "minimo": g["minimo"].min().values,
+                                  "cierre": g["cierre"].last().values})
+        ops = pd.DataFrame([{"fecha": d, "tipo": t, "cantidad": c, "precio": p * f}
+                            for d, t, c, p in self._OPERACIONES[activo_id] if d >= desde],
+                           columns=["fecha", "tipo", "cantidad", "precio"])
+        pos = self.posiciones().set_index("activo_id").loc[activo_id]
+        resumen = {}
+        if not velas.empty:
+            inicio, ultimo = float(velas["apertura"].iloc[0]), float(velas["cierre"].iloc[-1])
+            resumen = {"desde": velas["fecha"].iloc[0], "hasta": velas["fecha"].iloc[-1],
+                       "precio_inicio": inicio, "ultimo_cierre": ultimo,
+                       "variacion": ultimo / inicio - 1,
+                       "maximo": float(velas["maximo"].max()), "minimo": float(velas["minimo"].min())}
+        return {"velas": velas, "agrupacion": "semana" if semanal else "dia", "operaciones": ops,
+                "costo_promedio": float(pos["costo_total"]) / float(pos["cantidad"]) * f,
+                "resumen": resumen, "moneda": moneda}
+
+    # Precios de ejemplo en COP por unidad (los mismos de ServicioPreciosMock)
     _PRECIOS_SUGERIDOS = {"AAPL": 1_045_000.0, "ECOPETROL": 2_380.0,
                           "NKE": 278_800.0, "KO": 295_200.0}
 
@@ -59,12 +104,18 @@ class PortafolioMock:
         ]
         datos = []
         for aid, nombre, tipo, cant, costo, valor, ingresos in filas:
-            ganancia = valor + ingresos - costo
+            # Solo Apple tuvo una venta: su ganancia incluye lo ganado al vender
+            realizada = self.VENTAS - self.COSTO_VENDIDO if nombre == "Apple" else 0.0
+            invertido = costo + (self.COSTO_VENDIDO if nombre == "Apple" else 0.0)
+            no_realizada = valor - costo
+            ganancia = no_realizada + realizada + ingresos
             datos.append({
                 "activo_id": aid, "nombre": nombre, "tipo": tipo,
                 "cantidad": cant, "costo_total": float(costo) * f,
                 "valor_actual": float(valor) * f, "ingresos": float(ingresos) * f,
-                "ganancia": float(ganancia) * f, "rentabilidad": ganancia / costo,
+                "ganancia": float(ganancia) * f, "rentabilidad": ganancia / invertido,
+                "ganancia_no_realizada": float(no_realizada) * f,
+                "ganancia_realizada": float(realizada) * f,
             })
         return pd.DataFrame(datos)
 

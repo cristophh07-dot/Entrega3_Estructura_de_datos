@@ -74,6 +74,27 @@ class TestPortafolio(unittest.TestCase):
         nike = [a for a in self.p.repositorio.listar_activos() if a.nombre == "Nike"][0]
         self.assertEqual(m.precio_sugerido(nike), 278_800)
         
+    def test_ganancia_por_activo_se_separa_en_tres_partes(self):
+        for moneda in ("COP", "USD"):
+            pos = self.p.posiciones(moneda)
+            partes = pos["ganancia_no_realizada"] + pos["ganancia_realizada"] + pos["ingresos"]
+            for esperado, obtenido in zip(pos["ganancia"], partes):
+                self.assertAlmostEqual(esperado, obtenido, places=4)
+            r = self.p.resumen(moneda)
+            self.assertAlmostEqual(pos["ganancia_realizada"].sum(), r["ganancia_realizada"], places=4)
+            self.assertAlmostEqual(pos["ganancia_no_realizada"].sum(), r["ganancia_no_realizada"], places=4)
+
+    def test_mock_cuadra_por_activo_y_total(self):
+        m = PortafolioMock()
+        pos, r = m.posiciones(), m.resumen()
+        self.assertAlmostEqual(pos["ganancia"].sum(), r["ganancia"], places=2)
+        self.assertAlmostEqual(pos["ganancia_realizada"].sum(), r["ganancia_realizada"], places=2)
+
+    def test_ultimo_punto_de_la_serie_es_el_valor_actual(self):
+        for moneda in ("COP", "USD"):
+            serie = self.p.serie_valor(date(2026, 10, 1), moneda)
+            self.assertAlmostEqual(serie["valor"].iloc[-1], self.p.resumen(moneda)["valor_actual"], places=4)
+
     def test_serie_valor_termina_hoy(self):
         serie = self.p.serie_valor(date(2026, 10, 1))
         self.assertEqual(serie["fecha"].iloc[-1], HOY)

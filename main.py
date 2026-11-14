@@ -34,11 +34,22 @@ def crear_servicio_precios(repositorio, usar_mock):
     return ServicioPreciosMock(repositorio)
 
 
+def crear_servicio_velas(usar_mock):
+    if not usar_mock:
+        try:
+            from datos.servicio_velas import ServicioVelas
+            return ServicioVelas()
+        except ImportError:
+            print("[main] datos.servicio_velas aún no existe: uso ServicioVelasMock")
+    from mocks.servicio_velas_mock import ServicioVelasMock
+    return ServicioVelasMock()
+
+
 def crear_portafolio(repositorio, precios, usar_mock):
     if not usar_mock:
         try:
             from motor.portafolio import Portafolio
-            return Portafolio(repositorio, precios)
+            return Portafolio(repositorio, precios, servicio_velas=crear_servicio_velas(usar_mock))
         except ImportError:
             print("[main] motor.portafolio aún no existe: uso PortafolioMock")
     from mocks.portafolio_mock import PortafolioMock

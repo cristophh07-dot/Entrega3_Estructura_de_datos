@@ -17,6 +17,7 @@ class VentanaPrincipal(ctk.CTk):
     # (texto del menú, módulo, clase). Las vistas se importan al abrirlas.
     SECCIONES = [
         ("Dashboard", "interfaz.vista_dashboard", "VistaDashboard"),
+        ("Acciones", "interfaz.vista_acciones", "VistaAcciones"),
         ("Activos", "interfaz.vista_activos", "VistaActivos"),
         ("Operaciones", "interfaz.vista_operaciones", "VistaOperaciones"),
         ("Flujos", "interfaz.vista_flujos", "VistaFlujos"),

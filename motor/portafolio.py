@@ -30,6 +30,7 @@ import pandas as pd
 from motor.calculadora_rentabilidad import CalculadoraRentabilidad
 from motor.conversor_moneda import ConversorMoneda
 from motor.generador_flujos import GeneradorFlujos
+from motor.historial_accion import HistorialAccion
 from motor.posicion import Posicion
 from motor.valorador_renta_fija import ValoradorRentaFija
 from motor.valorador_renta_variable import ValoradorRentaVariable
@@ -40,10 +41,12 @@ class Portafolio:
 
     MONEDAS = ("COP", "USD")
     COLUMNAS_POSICIONES = ["activo_id", "nombre", "tipo", "cantidad", "costo_total",
-                           "valor_actual", "ingresos", "ganancia", "rentabilidad"]
+                           "valor_actual", "ingresos", "ganancia", "rentabilidad",
+                           "ganancia_no_realizada", "ganancia_realizada"]
 
-    def __init__(self, repositorio, servicio_precios, fecha_corte=None):
-        """fecha_corte: fecha a la que se valora (hoy si no se indica; las pruebas la fijan)."""
+    def __init__(self, repositorio, servicio_precios, fecha_corte=None, servicio_velas=None):
+        """fecha_corte: fecha a la que se valora (hoy si no se indica; las pruebas la fijan).
+        servicio_velas: opcional; da las velas diarias de cada acción para la vista de velas."""
         self.repositorio = repositorio
         self.servicio_precios = servicio_precios
         self.fecha_corte = fecha_corte
@@ -52,6 +55,9 @@ class Portafolio:
         self.valorador_rf = ValoradorRentaFija(self.generador)
         self.calculadora = CalculadoraRentabilidad()
         self.conversor = ConversorMoneda(servicio_precios)
+        self.servicio_velas = servicio_velas
+        self.historial_accion = (HistorialAccion(servicio_velas, self.conversor)
+                                 if servicio_velas is not None else None)
         self.actualizar()
 
     # ------------------------------------------------------------------
@@ -68,6 +74,8 @@ class Portafolio:
         """Vuelve a leer todo del repositorio y recalcula. Se llama tras guardar algo."""
         self.valorador_rv.limpiar_cache()
         self.conversor.limpiar_cache()
+        if self.servicio_velas is not None:
+            self.servicio_velas.limpiar_cache()
         self._activos = self.repositorio.listar_activos()
         self._operaciones = self.repositorio.listar_operaciones()
         self._flujos = self.repositorio.listar_flujos()
@@ -101,6 +109,21 @@ class Portafolio:
     def _validar(self, moneda):
         if moneda not in self.MONEDAS:
             raise ValueError(f"moneda debe ser 'COP' o 'USD' (recibido: {moneda!r})")
+
+    def grafica_accion(self, activo_id, desde, moneda="USD"):
+        """Datos de la gráfica de velas de una acción, desde 'desde' hasta hoy:
+        {"velas", "agrupacion", "operaciones", "costo_promedio", "resumen", "moneda"}.
+        Sin servicio de velas o sin datos, "velas" viene vacío."""
+        self._validar(moneda)
+        activo = next((a for a in self._activos if a.id == activo_id), None)
+        if activo is None or activo.es_renta_fija():
+            raise ValueError("La gráfica de velas es solo para acciones")
+        if self.historial_accion is None:
+            vacio = pd.DataFrame(columns=HistorialAccion.COLUMNAS)
+            return {"velas": vacio, "agrupacion": "dia",
+                    "operaciones": pd.DataFrame(columns=["fecha", "tipo", "cantidad", "precio"]),
+                    "costo_promedio": None, "resumen": {}, "moneda": moneda}
+        return self.historial_accion.grafica(activo, self._operaciones, desde, self.hoy, moneda)
 
     def precio_sugerido(self, activo, fecha=None):
         """Precio de mercado por unidad, en COP, para prellenar el formulario de operaciones.
@@ -180,7 +203,9 @@ class Portafolio:
         }
 
     def posiciones(self, moneda="COP"):
-        """Una fila por activo que haya tenido compras (incluye los ya vendidos)."""
+        """Una fila por activo que haya tenido compras (incluye los ya vendidos).
+        La ganancia de cada activo se separa igual que en resumen():
+          ganancia = ganancia_no_realizada + ganancia_realizada + ingresos"""
         self._validar(moneda)
         operaciones, flujos = self._movimientos(moneda)
         f = self._factor_hoy(moneda)
@@ -199,6 +224,8 @@ class Portafolio:
                 "cantidad": p.cantidad, "costo_total": p.costo_total,
                 "valor_actual": valor, "ingresos": ingresos, "ganancia": ganancia,
                 "rentabilidad": ganancia / p.total_invertido,
+                "ganancia_no_realizada": valor - p.costo_total,
+                "ganancia_realizada": p.ganancia_realizada,
             })
         return pd.DataFrame(filas, columns=self.COLUMNAS_POSICIONES)
 
@@ -209,8 +236,11 @@ class Portafolio:
         filas = []
         dia = desde
         while dia <= self.hoy:
-            total = sum(self._valorar(Posicion(a, self._operaciones, hasta=dia), dia)
-                        for a in self._activos)
+            if dia == self.hoy:   # el último punto es exactamente el "Valor actual" de las tarjetas
+                total = sum(self._valores.values())
+            else:
+                total = sum(self._valorar(Posicion(a, self._operaciones, hasta=dia), dia)
+                            for a in self._activos)
             if moneda == "USD":
                 total = self.conversor.a_usd(total, dia)
             filas.append({"fecha": dia, "valor": total})

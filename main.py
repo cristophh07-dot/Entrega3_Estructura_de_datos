@@ -45,11 +45,11 @@ def crear_servicio_velas(usar_mock):
     return ServicioVelasMock()
 
 
-def crear_portafolio(repositorio, precios, usar_mock):
+def crear_portafolio(repositorio, precios, velas, usar_mock):
     if not usar_mock:
         try:
             from motor.portafolio import Portafolio
-            return Portafolio(repositorio, precios, servicio_velas=crear_servicio_velas(usar_mock))
+            return Portafolio(repositorio, precios, servicio_velas=velas)
         except ImportError:
             print("[main] motor.portafolio aún no existe: uso PortafolioMock")
     from mocks.portafolio_mock import PortafolioMock
@@ -60,10 +60,11 @@ def main():
     usar_mock = "--mock" in sys.argv
     repositorio = crear_repositorio(usar_mock)
     precios = crear_servicio_precios(repositorio, usar_mock)
+    velas = crear_servicio_velas(usar_mock)
     if "--cargar-ejemplo" in sys.argv and not usar_mock:
         from motor.cargador_ejemplo import CargadorEjemplo
-        CargadorEjemplo(repositorio, precios).cargar()
-    portafolio = crear_portafolio(repositorio, precios, usar_mock)
+        CargadorEjemplo(repositorio, precios, servicio_velas=velas).cargar()
+    portafolio = crear_portafolio(repositorio, precios, velas, usar_mock)
 
     try:
         from interfaz.ventana_principal import VentanaPrincipal

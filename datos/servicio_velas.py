@@ -54,6 +54,25 @@ class ServicioVelas:
         self._cache[ticker] = (desde, df)
         return df
 
+    def dividendos(self, ticker: str, desde: date) -> pd.DataFrame:
+        """Dividendos por acción en la moneda original del ticker: columnas fecha, valor_por_accion.
+        La fecha es la ex-dividendo (desde ese día, quien compra ya no recibe ese pago)."""
+        vacio = pd.DataFrame(columns=["fecha", "valor_por_accion"])
+        if not isinstance(ticker, str) or not ticker.strip() or not isinstance(desde, date):
+            return vacio
+        try:
+            serie = yf.Ticker(ticker.strip().upper()).dividends
+        except Exception:   # sin internet o ticker inválido
+            return vacio
+        if serie is None or len(serie) == 0:
+            return vacio
+        filas = []
+        for indice, valor in serie.items():
+            dia = indice.date() if hasattr(indice, "date") else date.fromisoformat(str(indice)[:10])
+            if dia >= desde and float(valor) > 0:
+                filas.append({"fecha": dia, "valor_por_accion": float(valor)})
+        return pd.DataFrame(filas, columns=["fecha", "valor_por_accion"])
+
     def limpiar_cache(self) -> None:
         """Se llama al actualizar precios, para volver a descargar."""
         self._cache.clear()

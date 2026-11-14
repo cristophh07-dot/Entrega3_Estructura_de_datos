@@ -79,6 +79,20 @@ class PortafolioMock:
     _PRECIOS_SUGERIDOS = {"AAPL": 1_045_000.0, "ECOPETROL": 2_380.0,
                           "NKE": 278_800.0, "KO": 295_200.0}
 
+    def comision_sugerida(self, valor_operacion):
+        """Misma regla estándar del real: $12.500 + IVA hasta $5.000.000; 0,25 % + IVA encima."""
+        if valor_operacion <= 0:
+            return 0.0, "tarifa fija de $ 12.500 + IVA (operaciones hasta $ 5.000.000)"
+        if valor_operacion <= 5_000_000:
+            return 14_875.0, "tarifa fija de $ 12.500 + IVA (operaciones hasta $ 5.000.000)"
+        return (round(valor_operacion * 0.0025 * 1.19, 2),
+                "0,25 % + IVA sobre el valor (operaciones de más de $ 5.000.000)")
+
+    def cantidad_disponible(self, activo_id, fecha=None):
+        """Cantidad de ejemplo que se tiene hoy de cada activo."""
+        pos = self.posiciones().set_index("activo_id")
+        return float(pos.loc[activo_id, "cantidad"]) if activo_id in pos.index else 0.0
+
     def precio_sugerido(self, activo, fecha=None):
         """Precio de ejemplo para prellenar el formulario (en el real es el de mercado)."""
         if activo.es_renta_fija():

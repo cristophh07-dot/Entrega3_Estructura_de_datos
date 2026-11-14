@@ -28,6 +28,7 @@ from types import SimpleNamespace
 import pandas as pd
 
 from motor.calculadora_rentabilidad import CalculadoraRentabilidad
+from motor.comision_broker import ComisionBroker
 from motor.conversor_moneda import ConversorMoneda
 from motor.generador_flujos import GeneradorFlujos
 from motor.historial_accion import HistorialAccion
@@ -55,6 +56,7 @@ class Portafolio:
         self.valorador_rf = ValoradorRentaFija(self.generador)
         self.calculadora = CalculadoraRentabilidad()
         self.conversor = ConversorMoneda(servicio_precios)
+        self.comision_broker = ComisionBroker()
         self.servicio_velas = servicio_velas
         self.historial_accion = (HistorialAccion(servicio_velas, self.conversor)
                                  if servicio_velas is not None else None)
@@ -124,6 +126,21 @@ class Portafolio:
                     "operaciones": pd.DataFrame(columns=["fecha", "tipo", "cantidad", "precio"]),
                     "costo_promedio": None, "resumen": {}, "moneda": moneda}
         return self.historial_accion.grafica(activo, self._operaciones, desde, self.hoy, moneda)
+
+    def comision_sugerida(self, valor_operacion):
+        """Comisión estándar en COP para una compra o venta de 'valor_operacion' pesos,
+        y la frase que explica la regla aplicada: (comision, regla)."""
+        return (self.comision_broker.comision(valor_operacion),
+                self.comision_broker.regla(valor_operacion))
+
+    def cantidad_disponible(self, activo_id, fecha=None):
+        """Acciones o títulos que se tienen de un activo en 'fecha' (hoy si no se indica).
+        Sirve para mostrar cuánto se puede vender."""
+        fecha = fecha or self.hoy
+        activo = next((a for a in self._activos if a.id == activo_id), None)
+        if activo is None:
+            return 0.0
+        return Posicion(activo, self._operaciones, hasta=fecha).cantidad
 
     def precio_sugerido(self, activo, fecha=None):
         """Precio de mercado por unidad, en COP, para prellenar el formulario de operaciones.

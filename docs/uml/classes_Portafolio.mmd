@@ -1,0 +1,352 @@
+classDiagram
+  class Accion {
+    MONEDAS_VALIDAS : tuple
+    moneda : str
+    ticker
+    es_renta_fija() bool
+  }
+  class Activo {
+    TIPOS_VALIDOS : tuple
+    id : int | None
+    nombre
+    tipo : str
+    es_renta_fija()* bool
+  }
+  class Bono {
+    es_renta_fija() bool
+  }
+  class CDT {
+    es_renta_fija() bool
+  }
+  class CalculadoraRentabilidad {
+    BASE_DIAS : int
+    TASA_MAX : float
+    TASA_MIN : float
+    calcular(operaciones, flujos, valor_actual, fecha)
+    comisiones(operaciones)
+    flujos_de_caja(operaciones, flujos, valor_actual, fecha)
+    ingresos_netos(flujos)
+    rentabilidad_acumulada(total_invertido, ventas, ingresos, valor_actual)
+    total_invertido(operaciones)
+    valor_presente(tasa, flujos_caja)
+    ventas_netas(operaciones)
+    xirr(flujos_caja)
+  }
+  class CargadorEjemplo {
+    ACCIONES : list
+    OPERACIONES_ACCIONES : list
+    RETENCION : float
+    comisiones
+    conversor
+    generador
+    hoy : date
+    repositorio
+    servicio_precios
+    servicio_velas : NoneType
+    cargar()
+  }
+  class ComisionBroker {
+    PORCENTAJE : float
+    comision(valor_operacion: float) float
+    regla(valor_operacion: float) str
+  }
+  class ConversorMoneda {
+    TICKER_TRM : str
+    servicio_precios
+    a_usd(valor_cop, fecha)
+    cargar(desde)
+    limpiar_cache()
+    trm_actual()
+    trm_en(fecha)
+  }
+  class ExtractoMovimientos {
+    COLUMNAS : list
+    NOMBRES : dict
+    ORDEN : dict
+    conversor
+    extracto(activo, operaciones, flujos, valor_actual_cop)
+  }
+  class FlujoCaja {
+    TIPOS_VALIDOS : tuple
+    activo_id : int
+    fecha : date
+    id : int | None
+    retencion : float
+    tipo : str
+    valor_bruto : float
+    valor_neto : float
+  }
+  class GeneradorFlujos {
+    BASE_DIAS : int
+    cupon(titulo)
+    fechas_pago(titulo)
+    flujos(titulo, desde, hasta)
+    sumar_meses(fecha, meses)
+    ultimo_pago(titulo, fecha)
+  }
+  class HistorialAccion {
+    COLUMNAS : list
+    MAX_VELAS_DIARIAS : int
+    conversor
+    servicio_velas
+    costo_promedio(activo, operaciones, hasta, moneda)
+    grafica(activo, operaciones, desde, hasta, moneda)
+    operaciones(activo, operaciones, desde, hasta, moneda)
+    por_semana(df)
+    resumen(df)
+    velas(activo, desde, moneda)
+  }
+  class Operacion {
+    TIPOS_VALIDOS : tuple
+    activo_id : int
+    cantidad : float
+    comision : float
+    fecha : date
+    flujo_neto : float
+    id : int | None
+    precio : float
+    tipo : str
+    valor_bruto : float
+  }
+  class Portafolio {
+    COLUMNAS_POSICIONES : list
+    MONEDAS : tuple
+    avisos
+    calculadora
+    comision_broker
+    conversor
+    fecha_corte : NoneType
+    generador
+    historial_accion : NoneType
+    hoy
+    repositorio
+    servicio_precios
+    servicio_velas : NoneType
+    valorador_rf
+    valorador_rv
+    actualizar()
+    cantidad_disponible(activo_id, fecha)
+    comision_sugerida(valor_operacion)
+    distribucion(moneda)
+    extracto(activo_id)
+    grafica_accion(activo_id, desde, moneda)
+    posiciones(moneda)
+    precio_sugerido(activo, fecha)
+    proximos_flujos(dias, moneda)
+    resumen(moneda)
+    serie_valor(desde, moneda)
+    trm_en(fecha)
+  }
+  class Posicion {
+    TOLERANCIA : float
+    activo
+    cantidad : float
+    comisiones : float
+    costo_promedio
+    costo_total : float
+    esta_abierta
+    fecha_primera_compra : NoneType
+    ganancia_realizada : float
+    total_invertido : float
+    ventas_netas : float
+    ganancia_no_realizada(valor_actual)
+  }
+  class RentaFija {
+    PERIODICIDADES_VALIDAS : tuple
+    TIPOS_RENTA_FIJA : tuple
+    fecha_emision : date
+    fecha_vencimiento : date
+    periodicidad_meses : int
+    tasa : float
+    tasa_mercado : float | None
+    valor_nominal : float
+    tasa_de_valoracion() float
+  }
+  class Repositorio {
+    ruta_db : str
+    cerrar() None
+    eliminar_flujo(id: int) None
+    eliminar_operacion(id: int) None
+    guardar_activo(activo) int
+    guardar_flujo(flujo: FlujoCaja) int
+    guardar_operacion(op: Operacion) int
+    guardar_precio_manual(ticker: str, fecha: date, precio: float) None
+    listar_activos() list
+    listar_flujos(activo_id: int | None) list[FlujoCaja]
+    listar_operaciones(activo_id: int | None) list[Operacion]
+    obtener_activo(id: int)
+  }
+  class SelectorFecha {
+    DIAS_NOMBRE : list
+    DIAS_SEMANA : list
+    MESES : list
+    fecha
+    maximo : NoneType
+    minimo : NoneType
+    abrir() None
+    cerrar() None
+    configure()
+    delete() None
+    establecer(fecha, avisar: bool) None
+    get() str
+    insert(_indice, texto: str) None
+    mover_mes(anio: int, mes: int, pasos: int)
+    permitido(dia: date) bool
+    semanas_del_mes(anio: int, mes: int)
+    texto_largo(dia: date) str
+  }
+  class ServicioPrecios {
+    MARGEN_TRM_DIAS : int
+    TICKER_TRM : str
+    repositorio
+    dividendos(ticker: str, desde: date) pd.DataFrame
+    historial(ticker: str, desde: date) pd.DataFrame
+    precio_actual(ticker: str) float | None
+    trm_actual() float
+  }
+  class ServicioVelas {
+    COLUMNAS : list
+    dividendos(ticker: str, desde: date) pd.DataFrame
+    limpiar_cache() None
+    velas(ticker: str, desde: date) pd.DataFrame
+  }
+  class TES {
+  }
+  class TablaDatos {
+    cargar(filas, ids) None
+    seleccionado()
+  }
+  class Tema {
+    ACENTO : str
+    ACENTO_HOVER : str
+    ALTO_VENTANA : int
+    ANCHO_MENU : int
+    ANCHO_VENTANA : int
+    BORDE : str
+    FAMILIA : str
+    FAMILIA_NEGRITA : str
+    FONDO : str
+    FUENTE_MENU : tuple
+    FUENTE_NORMAL : tuple
+    FUENTE_PEQUENA : tuple
+    FUENTE_SUBTITULO : tuple
+    FUENTE_TABLA : tuple
+    FUENTE_TARJETA : tuple
+    FUENTE_TITULO : tuple
+    GANANCIA : str
+    HOVER : str
+    MARGEN : int
+    PANEL : str
+    PERDIDA : str
+    RADIO : int
+    RENDIMIENTOS : str
+    RENTA_FIJA : str
+    RENTA_VARIABLE : str
+    TARJETA : str
+    TEXTO : str
+    TEXTO_SECUNDARIO : str
+    TEXTO_SOBRE_ACENTO : str
+    TOTAL : str
+    VALORIZACION : str
+    VENTAS : str
+    ZEBRA : str
+    aplicar() None
+    cantidad(valor: float) str
+    color_signo(valor: float) str
+    dinero(valor: float, moneda: str) str
+    dolares(valor: float) str
+    pesos(valor: float) str
+    porcentaje(decimal: float) str
+  }
+  class ValoradorRentaFija {
+    BASE_DIAS : int
+    generador
+    precio(titulo, fecha)
+    valor(posicion, fecha)
+  }
+  class ValoradorRentaVariable {
+    servicio_precios
+    sin_precio : list
+    limpiar_cache()
+    precio_actual(ticker)
+    precio_en_fecha(ticker, fecha, desde)
+    valor(posicion)
+  }
+  class VentanaPrincipal {
+    SECCIONES : list
+    portafolio
+    repositorio
+    mostrar_vista(nombre: str) None
+  }
+  class VistaAcciones {
+    COLOR_COMPRA : str
+    COLOR_VENTA : str
+    COLUMNAS_EXTRACTO : list
+    INDICADORES : list
+    MESES : list
+    PERIODOS : list
+    portafolio
+    repositorio
+    dibujar_velas(ejes, datos: dict) None
+    refrescar() None
+  }
+  class VistaActivos {
+    CAMPOS : list
+    CLASES_RENTA_FIJA : dict
+    COLUMNAS : list
+    NOMBRES_PERIODICIDAD
+    PERIODICIDADES : dict
+    TIPOS : dict
+    refrescar() None
+  }
+  class VistaBase {
+    COLUMNAS_FORMULARIO : int
+    NOMBRES_TIPO : dict
+    SIN_ACTIVOS : str
+    portafolio
+    repositorio
+    refrescar()* None
+  }
+  class VistaDashboard {
+    COLUMNAS_FLUJOS : list
+    COLUMNAS_POSICIONES : list
+    INDICADORES : list
+    NOMBRES_TIPO : dict
+    PARTES_GANANCIA : list
+    portafolio
+    repositorio
+    refrescar() None
+  }
+  class VistaFlujos {
+    COLUMNAS : list
+    NOMBRES_FLUJO
+    RENTA_FIJA : tuple
+    TIPOS : dict
+    refrescar() None
+  }
+  class VistaOperaciones {
+    COLUMNAS : list
+    NOMBRES_OPERACION
+    TIPOS : dict
+    refrescar() None
+  }
+  VistaActivos --|> VistaBase
+  VistaFlujos --|> VistaBase
+  VistaOperaciones --|> VistaBase
+  Accion --|> Activo
+  Bono --|> RentaFija
+  CDT --|> RentaFija
+  RentaFija --|> Activo
+  TES --|> Bono
+  ValoradorRentaFija --> GeneradorFlujos : generador
+  Portafolio --> HistorialAccion : historial_accion
+  CalculadoraRentabilidad --* Portafolio : calculadora
+  ComisionBroker --* CargadorEjemplo : comisiones
+  ComisionBroker --* Portafolio : comision_broker
+  ConversorMoneda --* CargadorEjemplo : conversor
+  ConversorMoneda --* Portafolio : conversor
+  GeneradorFlujos --* CargadorEjemplo : generador
+  GeneradorFlujos --* Portafolio : generador
+  ValoradorRentaFija --* Portafolio : valorador_rf
+  ValoradorRentaVariable --* Portafolio : valorador_rv
+  Repositorio --o ServicioPrecios : repositorio

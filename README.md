@@ -136,7 +136,7 @@ Hay más detalle (arquitectura, manual de uso, fórmulas y flujo de Git) en la [
 | Integrante | Responsabilidad | GitHub |
 |---|---|---|
 | Cristopher | Motor de cálculo (`motor/`), `main.py` y administración del repositorio | [@cristophh07-dot](https://github.com/cristophh07-dot) |
-| Josué | Modelos (`modelos/`), datos (`datos/`) y diagramas UML (`docs/uml/`) | josuetamayo1 |
+| Josué | Modelos (`modelos/`), datos (`datos/`) y diagramas UML (`docs/uml/`) | [@josuetamayo1](https://github.com/josuetamayo1) |
 | Johan | Interfaz gráfica (`interfaz/`), README y wiki | [@jhoanpro321-ux](https://github.com/jhoanpro321-ux) |
 
 ## Flujo de trabajo en Git

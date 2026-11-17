@@ -12,7 +12,7 @@ Proyecto de la asignatura **Estructura de datos** (Entrega 3), hecho en equipo p
 - **Acciones:** gráfica de **velas japonesas** de cada acción, con tus compras y ventas marcadas, tu costo promedio y el extracto de movimientos fila por fila.
 - **Activos:** crea acciones (con su ticker de Yahoo Finance y su moneda), CDT, bonos y TES (con valor nominal, tasa E.A., fechas, periodicidad de pago y tasa de mercado).
 - **Operaciones:** registra compras y ventas. La fecha se elige en un **calendario desplegable**, y el **precio** (de mercado de ese día) y la **comisión** (0,2 % del valor, tarifa estándar) se llenan solos, aunque se pueden cambiar. No deja vender más de lo que se tiene.
-- **Flujos de caja:** registra dividendos (acciones) e intereses, pagos de capital u otros ingresos (renta fija), con su retención en la fuente.
+- **Flujos de caja:** registra dividendos (acciones) e intereses, pagos de capital u otros ingresos (renta fija).
 - Los datos se guardan en una base SQLite local (`portafolio.db`). Los precios se consultan con `yfinance`.
 
 ## Capturas
@@ -136,7 +136,7 @@ Hay más detalle (arquitectura, manual de uso, fórmulas y flujo de Git) en la [
 | Integrante | Responsabilidad | GitHub |
 |---|---|---|
 | Cristopher | Motor de cálculo (`motor/`), `main.py` y administración del repositorio | [@cristophh07-dot](https://github.com/cristophh07-dot) |
-| Josué | Modelos (`modelos/`), datos (`datos/`) y diagramas UML (`docs/uml/`) | [@josuetamayo1](https://github.com/josuetamayo1) |
+| Josué | Modelos (`modelos/`), datos (`datos/`) y diagramas UML (`docs/uml/`) | josuetamayo1 |
 | Johan | Interfaz gráfica (`interfaz/`), README y wiki | [@jhoanpro321-ux](https://github.com/jhoanpro321-ux) |
 
 ## Flujo de trabajo en Git

@@ -2,7 +2,8 @@
 CargadorEjemplo: llena la base de datos con el portafolio de ejemplo del proyecto.
 
 Acciones: Apple, Ecopetrol, Nike y Coca-Cola.
-Renta fija: un CDT, un bono corporativo y un TES.
+Renta fija: CDT Bancolombia a 360 días, bono ordinario de Itaú Colombia
+(BITU125SA060) y TES tasa fija 2031 (TFIT10260331), con sus condiciones reales.
 
 Sigue la misma lógica del Excel de referencia (Prueba_portafolio.xlsx):
 - Precio en COP de cada compra/venta = precio en USD de ese día × TRM de ese día.
@@ -29,6 +30,7 @@ from modelos.tes import TES
 from motor.comision_broker import ComisionBroker
 from motor.conversor_moneda import ConversorMoneda
 from motor.generador_flujos import GeneradorFlujos
+from motor.valorador_renta_fija import ValoradorRentaFija
 
 
 class CargadorEjemplo:
@@ -44,14 +46,20 @@ class CargadorEjemplo:
         ("Coca-Cola", "KO", "USD", 70.0),
     ]
 
+    # Todo el portafolio se compra el mismo día, para que la gráfica del valor
+    # muestre desde el inicio el portafolio completo. Es el 2 de marzo de 2026
+    # porque de ese día se conoce el precio real de mercado del TES.
+    FECHA_COMPRA = date(2026, 3, 2)
+
     # ticker, tipo, fecha, cantidad
     OPERACIONES_ACCIONES = [
-        ("AAPL", "COMPRA", date(2026, 1, 15), 10),
-        ("EC", "COMPRA", date(2026, 1, 20), 100),
-        ("NKE", "COMPRA", date(2026, 2, 10), 20),
-        ("KO", "COMPRA", date(2026, 2, 12), 30),
-        ("AAPL", "VENTA", date(2026, 8, 20), 3),
+        ("AAPL", "COMPRA", FECHA_COMPRA, 10),
+        ("EC", "COMPRA", FECHA_COMPRA, 100),
+        ("NKE", "COMPRA", FECHA_COMPRA, 20),
+        ("KO", "COMPRA", FECHA_COMPRA, 30),
     ]
+    # No se cargan ventas: serían decisiones inventadas. Las ventas las registra
+    # el usuario en la sección Operaciones (el precio y la comisión salen solos).
 
     def __init__(self, repositorio, servicio_precios, hoy=None, servicio_velas=None):
         self.repositorio = repositorio
@@ -137,17 +145,33 @@ class CargadorEjemplo:
 
     # ------------------------------------------------------------------ renta fija
     def _cargar_renta_fija(self):
+        compra = self.FECHA_COMPRA
+        # Bono ordinario de Itaú Colombia, código BITU125SA060: tasa fija 11,55 %,
+        # emitido el 18-mar-2025, vence el 18-mar-2030, intereses trimestre vencido.
+        # No tiene cotización pública diaria, así que se valora con su misma tasa
+        # (tasa de mercado = tasa cupón): nominal más intereses corridos.
+        bono = Bono("Bono Itaú 2030 (BITU125SA060)", 10_000_000, 0.1155,
+                    date(2025, 3, 18), date(2030, 3, 18), 3, 0.1155)
+        precio_bono = round(ValoradorRentaFija().precio(bono, compra), 2)   # estimado
         titulos = [
             # (título, fecha de compra, cantidad, precio por título)
-            (CDT("CDT Banco 360 días", 5_000_000, 0.105,
-                 date(2026, 2, 2), date(2027, 2, 2), 0),
-             date(2026, 2, 2), 1, 5_000_000),
-            (Bono("Bono corporativo 2029", 10_000_000, 0.11,
-                  date(2024, 5, 15), date(2029, 5, 15), 6, 0.105),
-             date(2026, 3, 10), 1, 10_150_000),
-            (TES("TES COP 2031", 1_000_000, 0.07,
-                 date(2020, 3, 26), date(2031, 3, 26), 12, 0.112),
-             date(2026, 4, 6), 5, 905_000),
+            #
+            # CDT Bancolombia a 360 días. Tasa: 12,13 % E.A., la que reportó la
+            # Superintendencia Financiera para Bancolombia a 360 días con corte al
+            # 23 de febrero de 2026 (último reporte antes de la compra).
+            (CDT("CDT Bancolombia 360 días", 5_000_000, 0.1213,
+                 compra, compra + timedelta(days=360), 0),
+             compra, 1, 5_000_000),
+            (bono, compra, 1, precio_bono),
+            # TES tasa fija en pesos, referencia TFIT10260331: cupón 7 % anual,
+            # emitido el 26-mar-2021, vence el 26-mar-2031, valor nominal $100.000.
+            # Precio sucio del 2-mar-2026: 81,827 % del nominal (tasa 14,150 %;
+            # informe diario de deuda pública de MinHacienda).
+            # Tasa de mercado para valorarlo hoy: 12,99 % (corte 27-oct-2026,
+            # informe mensual de deuda pública del Banco Agrario).
+            (TES("TES 7% 2031 (TFIT10260331)", 100_000, 0.07,
+                 date(2021, 3, 26), date(2031, 3, 26), 12, 0.1299),
+             compra, 50, 81_827),
         ]
         creados = 0
         for titulo, fecha, cantidad, precio in titulos:

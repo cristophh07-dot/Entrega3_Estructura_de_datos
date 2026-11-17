@@ -57,11 +57,17 @@ class VistaDashboard(ctk.CTkFrame):
         ("tipo", "Tipo", 90, "w"), ("valor", "Valor", 110, "e"),
     ]
 
+    # Períodos de la gráfica "Valor del portafolio": (texto del botón, días hacia atrás).
+    # None = desde la primera compra.
+    PERIODOS = [("1M", 30), ("3M", 91), ("6M", 182), ("Desde el inicio", None)]
+
     def __init__(self, master, repositorio, portafolio):
         super().__init__(master, fg_color=Tema.FONDO, corner_radius=0)
         self.repositorio = repositorio
         self.portafolio = portafolio
         self._moneda = "COP"
+        self._periodo = "Desde el inicio"
+        self._serie = None    # serie completa del valor; el período solo recorta lo que se dibuja
         self._valores = {}    # llave del resumen -> etiqueta con el valor del indicador
         self._graficas = {}   # nombre -> (figura, ejes, lienzo)
 
@@ -138,8 +144,17 @@ class VistaDashboard(ctk.CTkFrame):
         fila = self._crear_fila(pesos=(1, 2))
         self._crear_grafica(fila, "distribucion", "Cómo está repartido el portafolio", 3.2, 3.2).grid(
             row=0, column=0, sticky="nsew", padx=(0, 6))
-        self._crear_grafica(fila, "evolucion", "Valor del portafolio", 6.4, 3.2).grid(
-            row=0, column=1, sticky="nsew", padx=(6, 0))
+        panel = self._crear_grafica(fila, "evolucion", "Valor del portafolio", 6.4, 3.2)
+        panel.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+        # Botones de período, en la esquina superior derecha del panel
+        self._selector_periodo = ctk.CTkSegmentedButton(
+            panel, values=[texto for texto, _ in self.PERIODOS], command=self._cambiar_periodo,
+            font=Tema.FUENTE_PEQUENA,
+            height=28, corner_radius=Tema.RADIO, border_width=1, fg_color=Tema.BORDE,
+            selected_color=Tema.BORDE, selected_hover_color=Tema.BORDE,
+            unselected_color=Tema.FONDO, unselected_hover_color=Tema.HOVER, text_color=Tema.TEXTO)
+        self._selector_periodo.set(self._periodo)
+        self._selector_periodo.place(relx=1.0, x=-12, y=8, anchor="ne")
 
     def _construir_fila_ingresos(self) -> None:
         fila = self._crear_fila(pesos=(1, 2))
@@ -204,7 +219,8 @@ class VistaDashboard(ctk.CTkFrame):
             self._dibujar_origen_ganancia(datos["resumen"])
             self._dibujar_ganancia_activos(datos["posiciones"])
             self._dibujar_distribucion(datos["distribucion"])
-            self._dibujar_evolucion(datos["serie"])
+            self._serie = datos["serie"]
+            self._dibujar_evolucion(self._serie)
             self._dibujar_ingresos(datos["posiciones"])
             self._dibujar_dividendos(datos["posiciones"])
             self._dibujar_rentabilidad(datos["posiciones"])
@@ -228,6 +244,19 @@ class VistaDashboard(ctk.CTkFrame):
     def _cambiar_moneda(self, moneda: str) -> None:
         self._moneda = moneda
         self.refrescar()
+
+    def _cambiar_periodo(self, periodo: str) -> None:
+        """Solo redibuja la gráfica del valor: la serie ya está calculada."""
+        self._periodo = periodo
+        self._dibujar_evolucion(self._serie)
+
+    def _recortar_periodo(self, serie):
+        """Deja solo los días del período elegido (1M, 3M, 6M o todo)."""
+        dias = dict(self.PERIODOS)[self._periodo]
+        if dias is None or serie is None or serie.empty:
+            return serie
+        desde = serie["fecha"].iloc[-1] - timedelta(days=dias)
+        return serie[serie["fecha"] >= desde]
 
     def _actualizar_precios(self) -> None:
         self._boton.configure(state="disabled", text="Actualizando...")
@@ -450,6 +479,7 @@ class VistaDashboard(ctk.CTkFrame):
 
     def _dibujar_evolucion(self, serie) -> None:
         _, ejes, lienzo = self._preparar_ejes("evolucion")
+        serie = self._recortar_periodo(serie)
         if serie is None or serie.empty:
             self._mensaje_vacio(ejes)
         else:
@@ -458,8 +488,16 @@ class VistaDashboard(ctk.CTkFrame):
                       color=Tema.ACENTO, markersize=5)  # el último valor lleva el acento
             ejes.yaxis.set_major_formatter(FuncFormatter(lambda v, _: self._abreviar(v)))
             ejes.xaxis.set_major_locator(mdates.AutoDateLocator(maxticks=6))
-            ejes.xaxis.set_major_formatter(mdates.DateFormatter("%m/%Y"))
+            corto = (serie["fecha"].iloc[-1] - serie["fecha"].iloc[0]).days <= 100
+            ejes.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m" if corto else "%m/%Y"))
             ejes.grid(axis="y", color=Tema.BORDE, linewidth=0.6)
+            # Cuánto cambió el valor entre el primer y el último día que se ven
+            inicial, final = serie["valor"].iloc[0], serie["valor"].iloc[-1]
+            if inicial > 0:
+                cambio = final - inicial
+                texto = f"Cambio en el período: {self._con_signo(cambio)} ({cambio / inicial:+.1%})"
+                ejes.set_title(texto.replace(".", ","), loc="left", fontsize=9, pad=8,
+                               color=Tema.GANANCIA if cambio >= 0 else Tema.PERDIDA)
         lienzo.draw_idle()
 
     def _dibujar_rentabilidad(self, posiciones) -> None:

@@ -12,6 +12,7 @@ class SelectorFecha(ctk.CTkFrame):
     Se ve como un campo más del formulario ("sáb, 14 nov 2026  ▾"). Al hacer clic
     se despliega un calendario debajo:
       - flechas ‹ › para cambiar de mes y « » para cambiar de año;
+      - clic en el título ("Noviembre 2026 ▾") para saltar directo a cualquier mes y año;
       - los días en cuadrícula, de lunes a domingo;
       - el día de hoy con borde de color y el elegido relleno;
       - los días fuera del rango permitido (por ejemplo, el futuro en una compra) apagados;
@@ -35,6 +36,8 @@ class SelectorFecha(ctk.CTkFrame):
         self._texto_vacio = texto_vacio
         self._ventana = None          # calendario abierto (o None)
         self._mes_visible = None      # (año, mes) que muestra el calendario
+        self._eligiendo_mes = False   # True: se ve la lista de años y meses en vez de los días
+        self._primer_anio = None      # primer año de la lista de años que se ve
 
         self._boton = ctk.CTkButton(
             self, text=texto_vacio, anchor="w", height=34, corner_radius=Tema.RADIO,
@@ -106,6 +109,7 @@ class SelectorFecha(ctk.CTkFrame):
             return
         base = self._fecha or (min(date.today(), self.maximo) if self.maximo else date.today())
         self._mes_visible = (base.year, base.month)
+        self._eligiendo_mes = False
 
         self._ventana = ventana = ctk.CTkToplevel(self, fg_color=Tema.PANEL)
         ventana.withdraw()
@@ -152,9 +156,99 @@ class SelectorFecha(ctk.CTkFrame):
             self._ventana.destroy()
             self._ventana = None
 
+    @staticmethod
+    def anios_visibles(primero: int):
+        """Los 12 años que se muestran juntos, en 3 filas de 4."""
+        return [[primero + fila * 4 + columna for columna in range(4)] for fila in range(3)]
+
+    def mes_permitido(self, anio: int, mes: int) -> bool:
+        """¿Algún día de ese mes cae dentro del rango permitido?"""
+        primero = date(anio, mes, 1)
+        ultimo = date(anio, mes, calendar.monthrange(anio, mes)[1])
+        return (self.minimo is None or ultimo >= self.minimo) and (self.maximo is None or primero <= self.maximo)
+
+    def anio_permitido(self, anio: int) -> bool:
+        return (self.minimo is None or anio >= self.minimo.year) and (self.maximo is None or anio <= self.maximo.year)
+
+    def _abrir_meses(self) -> None:
+        """Cambia los días por la lista de años y meses."""
+        anio = self._mes_visible[0]
+        tope = self.maximo.year if self.maximo else anio + 4   # último año de la lista
+        self._primer_anio = tope - 11
+        while anio < self._primer_anio:                         # si el año visible es más viejo
+            self._primer_anio -= 12
+        self._eligiendo_mes = True
+        self._dibujar_mes()
+
+    def _elegir_anio(self, anio: int) -> None:
+        self._mes_visible = (anio, self._mes_visible[1])
+        self._dibujar_mes()
+
+    def _elegir_mes(self, mes: int) -> None:
+        self._mes_visible = (self._mes_visible[0], mes)
+        self._eligiendo_mes = False
+        self._dibujar_mes()
+
+    def _mover_anios(self, pasos: int) -> None:
+        self._primer_anio += pasos
+        self._dibujar_mes()
+
+    def _celda(self, master, texto, elegido, activo, comando, ancho=64):
+        return ctk.CTkButton(
+            master, text=texto, width=ancho, height=32, corner_radius=Tema.RADIO, font=Tema.FUENTE_NORMAL,
+            fg_color=Tema.ACENTO if elegido else "transparent",
+            hover_color=Tema.ACENTO_HOVER if elegido else Tema.HOVER,
+            text_color=Tema.TEXTO_SOBRE_ACENTO if elegido else Tema.TEXTO,
+            text_color_disabled=Tema.BORDE, state="normal" if activo else "disabled", command=comando)
+
+    def _dibujar_meses(self) -> None:
+        """Lista de años (12 a la vez) y los 12 meses: dos clics para ir a cualquier fecha."""
+        anio, mes = self._mes_visible
+
+        cabecera = ctk.CTkFrame(self._marco, fg_color="transparent")
+        cabecera.pack(fill="x", padx=10, pady=(10, 4))
+        for texto, pasos, lado in (("‹", -12, "left"), ("›", 12, "right")):
+            ctk.CTkButton(cabecera, text=texto, width=30, height=30, corner_radius=Tema.RADIO,
+                          fg_color="transparent", hover_color=Tema.HOVER, text_color=Tema.TEXTO,
+                          font=Tema.FUENTE_SUBTITULO,
+                          command=lambda p=pasos: self._mover_anios(p)).pack(side=lado)
+        ctk.CTkLabel(cabecera, text="Elige el año y el mes", font=Tema.FUENTE_SUBTITULO,
+                     text_color=Tema.TEXTO).pack(side="left", expand=True)
+
+        ctk.CTkLabel(self._marco, text="Año", font=Tema.FUENTE_PEQUENA,
+                     text_color=Tema.TEXTO_SECUNDARIO).pack(anchor="w", padx=14)
+        rejilla = ctk.CTkFrame(self._marco, fg_color="transparent")
+        rejilla.pack(padx=10)
+        for fila, anios in enumerate(self.anios_visibles(self._primer_anio)):
+            for columna, a in enumerate(anios):
+                self._celda(rejilla, str(a), a == anio, self.anio_permitido(a),
+                            lambda x=a: self._elegir_anio(x)).grid(row=fila, column=columna, padx=1, pady=1)
+
+        ctk.CTkLabel(self._marco, text="Mes", font=Tema.FUENTE_PEQUENA,
+                     text_color=Tema.TEXTO_SECUNDARIO).pack(anchor="w", padx=14, pady=(8, 0))
+        rejilla = ctk.CTkFrame(self._marco, fg_color="transparent")
+        rejilla.pack(padx=10)
+        for indice, nombre in enumerate(self.MESES):
+            m = indice + 1
+            self._celda(rejilla, nombre[:3].capitalize(), m == mes, self.mes_permitido(anio, m),
+                        lambda x=m: self._elegir_mes(x)).grid(row=indice // 4, column=indice % 4, padx=1, pady=1)
+
+        pie = ctk.CTkFrame(self._marco, fg_color="transparent")
+        pie.pack(fill="x", padx=10, pady=(8, 10))
+        ctk.CTkButton(pie, text="Volver a los días", width=120, height=30, corner_radius=Tema.RADIO,
+                      fg_color="transparent", border_width=1, border_color=Tema.BORDE,
+                      hover_color=Tema.HOVER, text_color=Tema.TEXTO, font=Tema.FUENTE_PEQUENA,
+                      command=lambda: self._elegir_mes(self._mes_visible[1])).pack(side="left")
+        ctk.CTkButton(pie, text="Cerrar", width=70, height=30, corner_radius=Tema.RADIO,
+                      fg_color="transparent", hover_color=Tema.HOVER, text_color=Tema.TEXTO_SECUNDARIO,
+                      font=Tema.FUENTE_PEQUENA, command=self.cerrar).pack(side="right")
+
     def _dibujar_mes(self) -> None:
         for hijo in self._marco.winfo_children():
             hijo.destroy()
+        if self._eligiendo_mes:
+            self._dibujar_meses()
+            return
         anio, mes = self._mes_visible
         hoy = date.today()
 
@@ -167,8 +261,11 @@ class SelectorFecha(ctk.CTkFrame):
                           fg_color="transparent", hover_color=Tema.HOVER, text_color=Tema.TEXTO,
                           font=Tema.FUENTE_SUBTITULO,
                           command=lambda p=pasos: self._cambiar_mes(p)).pack(side=lado)
-        ctk.CTkLabel(cabecera, text=f"{self.MESES[mes - 1].capitalize()} {anio}",
-                     font=Tema.FUENTE_SUBTITULO, text_color=Tema.TEXTO).pack(side="left", expand=True)
+        # El título es un botón: abre la lista de años y meses
+        ctk.CTkButton(cabecera, text=f"{self.MESES[mes - 1].capitalize()} {anio}  ▾", height=30,
+                      corner_radius=Tema.RADIO, fg_color="transparent", hover_color=Tema.HOVER,
+                      border_width=1, border_color=Tema.BORDE, text_color=Tema.TEXTO,
+                      font=Tema.FUENTE_SUBTITULO, command=self._abrir_meses).pack(side="left", expand=True)
 
         # Cuadrícula de días
         rejilla = ctk.CTkFrame(self._marco, fg_color="transparent")

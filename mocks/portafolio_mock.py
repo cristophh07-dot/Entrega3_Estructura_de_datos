@@ -140,9 +140,9 @@ class PortafolioMock:
             (2, "Ecopetrol", "ACCION", 2_000, 4_312_000, 4_760_000, 540_000),
             (6, "Nike", "ACCION", 20, 5_812_000, 5_576_000, 23_534),
             (7, "Coca-Cola", "ACCION", 30, 8_622_000, 8_856_000, 91_266),
-            (3, "CDT Banco 360 días", "CDT", 1, 5_000_000, 5_385_000, 0),
-            (4, "Bono corporativo 2029", "BONO", 1, 10_175_000, 10_220_000, 513_600),
-            (5, "TES COP 2031", "TES", 5, 4_543_000, 4_160_000, 0),
+            (3, "CDT Bancolombia 360 días", "CDT", 1, 5_000_000, 5_385_000, 0),
+            (4, "Bono Itaú 2030 (BITU125SA060)", "BONO", 1, 10_175_000, 10_220_000, 513_600),
+            (5, "TES 7% 2031 (TFIT10260331)", "TES", 50, 4_543_000, 4_160_000, 0),
         ]
         datos = []
         for aid, nombre, tipo, cant, costo, valor, ingresos in filas:
@@ -211,13 +211,13 @@ class PortafolioMock:
         f = self._factor(moneda)
         hoy = date.today()
         filas = [
-            {"fecha": date(2026, 11, 15), "nombre": "Bono corporativo 2029",
+            {"fecha": date(2026, 12, 18), "nombre": "Bono Itaú 2030 (BITU125SA060)",
              "tipo": "INTERES", "valor": 535_000.0},
             {"fecha": date(2026, 12, 15), "nombre": "Coca-Cola",
              "tipo": "DIVIDENDO", "valor": 45_633.0},
             {"fecha": date(2027, 1, 2), "nombre": "Nike",
              "tipo": "DIVIDENDO", "valor": 23_534.0},
-            {"fecha": date(2027, 2, 2), "nombre": "CDT Banco 360 días",
+            {"fecha": date(2027, 2, 18), "nombre": "CDT Bancolombia 360 días",
              "tipo": "CAPITAL", "valor": 5_525_000.0},
         ]
         limite = hoy + timedelta(days=dias)

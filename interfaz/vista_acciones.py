@@ -8,6 +8,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 from matplotlib.ticker import FuncFormatter, MaxNLocator
 
+from interfaz.tabla_datos import TablaDatos
 from interfaz.tema import Tema
 
 
@@ -36,6 +37,15 @@ class VistaAcciones(ctk.CTkFrame):
         ("Tu costo promedio", "costo_promedio", False),
     ]
 
+    # Columnas del extracto: las mismas del Excel de referencia
+    COLUMNAS_EXTRACTO = [
+        ("fecha", "Fecha", 106, "w"), ("movimiento", "Movimiento", 112, "w"),
+        ("cantidad", "Cantidad", 82, "e"), ("acciones", "Acciones", 88, "e"),
+        ("usd", "Valor US$", 96, "e"), ("trm", "TRM", 88, "e"), ("cop", "Valor COP", 104, "e"),
+        ("div_usd", "Div. US$", 84, "e"), ("div_cop", "Div. COP", 92, "e"),
+        ("comision", "Comisión", 92, "e"), ("saldo", "Saldo", 122, "e"),
+    ]
+
     COLOR_COMPRA = Tema.VALORIZACION
     COLOR_VENTA = Tema.VENTAS
 
@@ -58,6 +68,7 @@ class VistaAcciones(ctk.CTkFrame):
         self._construir_controles()
         self._construir_indicadores()
         self._construir_grafica()
+        self._construir_extracto()
 
     # ------------------------------------------------------------------ construcción
     def _construir_encabezado(self) -> None:
@@ -142,6 +153,51 @@ class VistaAcciones(ctk.CTkFrame):
                                      font=Tema.FUENTE_PEQUENA, text_color=Tema.TEXTO_SECUNDARIO)
         self._detalle.pack(anchor="w", padx=16, pady=(0, 12))
 
+    def _construir_extracto(self) -> None:
+        """Tabla con cada movimiento de la acción y el saldo acumulado, como en el Excel."""
+        panel = ctk.CTkFrame(self._contenido, fg_color=Tema.TARJETA, corner_radius=Tema.RADIO,
+                             border_width=1, border_color=Tema.BORDE)
+        panel.pack(fill="x", padx=Tema.MARGEN, pady=(0, Tema.MARGEN))
+        ctk.CTkLabel(panel, text="Movimientos de la acción", font=Tema.FUENTE_SUBTITULO,
+                     text_color=Tema.TEXTO).pack(anchor="w", padx=16, pady=(12, 0))
+        ctk.CTkLabel(panel, text=("Saldo = saldo anterior − compras + ventas + dividendos − comisiones. "
+                                  "Los precios en pesos usan la TRM de cada fecha."),
+                     font=Tema.FUENTE_PEQUENA, text_color=Tema.TEXTO_SECUNDARIO).pack(anchor="w", padx=16)
+        self._tabla_extracto = TablaDatos(panel, self.COLUMNAS_EXTRACTO, altura=6)
+        self._tabla_extracto.pack(fill="x", padx=16, pady=(8, 4))
+        self._resumen_extracto = ctk.CTkLabel(panel, text="", font=Tema.FUENTE_NORMAL,
+                                              text_color=Tema.TEXTO, anchor="w", justify="left")
+        self._resumen_extracto.pack(fill="x", padx=16, pady=(4, 12))
+
+    def _mostrar_extracto(self, activo) -> None:
+        try:
+            datos = self.portafolio.extracto(activo.id)
+        except Exception:  # noqa: BLE001 - la interfaz no debe caerse
+            traceback.print_exc()
+            self._tabla_extracto.cargar([])
+            self._resumen_extracto.configure(text="No se pudo armar el extracto de esta acción.")
+            return
+        def numero(valor, decimales=0, prefijo=""):
+            if valor is None or valor != valor:   # None o NaN: celda vacía
+                return ""
+            return prefijo + Tema._numero(valor, decimales) if valor >= 0 else "-" + prefijo + Tema._numero(-valor, decimales)
+        filas = []
+        for _, f in datos["filas"].iterrows():
+            filas.append([
+                f["fecha"].isoformat(), f["movimiento"],
+                Tema.cantidad(f["compra"] or f["venta"]) if (f["compra"] or f["venta"]) else "",
+                Tema.cantidad(f["acciones"]), numero(f["precio_usd"], 2), numero(f["trm"], 2),
+                numero(f["precio_cop"], 0, "$ "), numero(f["dividendo_usd"], 2), numero(f["dividendo_cop"], 0, "$ "),
+                numero(f["comision"], 0, "$ ") if f["comision"] else "", numero(f["saldo"], 0, "$ "),
+            ])
+        self._tabla_extracto.cargar(filas)
+        total = datos["total"]
+        partes = [f"Saldo: {Tema.pesos(datos['saldo'])}"]
+        if datos["acciones"]:
+            partes.append(f"Tus {Tema.cantidad(datos['acciones'])} acciones valen hoy {Tema.pesos(datos['valor_actual'])}")
+        partes.append(f"Resultado total: {'+' if total > 0 else ''}{Tema.pesos(total)}")
+        self._resumen_extracto.configure(text="   ·   ".join(partes), text_color=Tema.color_signo(total))
+
     # ------------------------------------------------------------------ datos
     def refrescar(self) -> None:
         """La ventana lo llama al mostrar la vista: recarga la lista de acciones y redibuja."""
@@ -173,7 +229,10 @@ class VistaAcciones(ctk.CTkFrame):
         activo = self._acciones.get(self._menu_accion.get())
         if activo is None:
             self._limpiar("Aún no hay acciones registradas. Agrégalas en la sección Activos.")
+            self._tabla_extracto.cargar([])
+            self._resumen_extracto.configure(text="")
             return
+        self._mostrar_extracto(activo)   # no depende de internet: va primero
         try:
             datos = self.portafolio.grafica_accion(activo.id, self._desde(activo), moneda=self._moneda)
         except Exception as error:  # noqa: BLE001 - la interfaz no debe caerse

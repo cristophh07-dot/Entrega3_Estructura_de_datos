@@ -9,14 +9,17 @@ from modelos.flujo_caja import FlujoCaja
 class VistaFlujos(VistaBase):
     """Formulario para registrar dividendos, intereses y pagos de capital, y tabla con el historial.
 
-    La retención se escribe en % y se pasa en decimal al modelo. Se valida que el
-    tipo de flujo tenga sentido para el activo: los dividendos son de acciones y
-    los intereses, de renta fija.
+    La retención se escribe en % y se pasa en decimal al modelo. El menú "Tipo de
+    flujo" solo ofrece lo que tiene sentido para el activo elegido: una acción solo
+    admite Dividendo; un CDT, bono o TES admite Interés, Capital u Otro. El capital,
+    por ejemplo, solo se puede elegir en renta fija. _validar() repite la regla por si
+    el menú no se actualizó.
     """
 
     TIPOS = {"Dividendo": "DIVIDENDO", "Interés": "INTERES", "Capital": "CAPITAL", "Otro": "OTRO"}
     NOMBRES_FLUJO = {codigo: nombre for nombre, codigo in TIPOS.items()}
-    RENTA_FIJA = ("CDT", "BONO", "TES")
+    TIPOS_ACCION = ["Dividendo"]
+    TIPOS_RENTA_FIJA = ["Interés", "Capital", "Otro"]
 
     COLUMNAS = [
         ("fecha", "Fecha", 105, "w"), ("activo", "Activo", 220, "w"), ("tipo", "Tipo", 100, "w"),
@@ -30,9 +33,10 @@ class VistaFlujos(VistaBase):
 
         cuerpo = self._crear_panel_formulario("Nuevo flujo")
         rejilla = self._crear_rejilla(cuerpo)
-        self._crear_campo(rejilla, "activo", "Activo", valores=[self.SIN_ACTIVOS])
+        self._crear_campo(rejilla, "activo", "Activo", valores=[self.SIN_ACTIVOS],
+                          comando=lambda _valor: self._actualizar_tipos())
         self._crear_campo(rejilla, "tipo", "Tipo de flujo", valores=list(self.TIPOS))
-        self._crear_campo(rejilla, "fecha", "Fecha de pago", ayuda="AAAA-MM-DD")
+        self._crear_campo(rejilla, "fecha", "Fecha de pago", fecha=True, maximo=date.today())
         self._crear_campo(rejilla, "valor_bruto", "Valor bruto (COP)", ayuda="Ej. 270.000")
         self._crear_campo(rejilla, "retencion", "Retención en la fuente (%)", ayuda="Vacío = 0")
         self._colocar_campos(rejilla, ["activo", "tipo", "fecha", "valor_bruto", "retencion"])
@@ -50,8 +54,22 @@ class VistaFlujos(VistaBase):
 
     def _limpiar(self) -> None:
         super()._limpiar()
-        self._widgets["tipo"].set("Dividendo")
         self._widgets["fecha"].insert(0, date.today().isoformat())
+        self._actualizar_tipos()
+
+    def _tipos_permitidos(self, activo) -> list:
+        """Los tipos de flujo que se pueden elegir para ese activo."""
+        if activo is None:
+            return list(self.TIPOS)
+        return self.TIPOS_ACCION if activo.tipo == "ACCION" else self.TIPOS_RENTA_FIJA
+
+    def _actualizar_tipos(self) -> None:
+        """Deja en el menú de tipos solo los que aplican al activo elegido."""
+        permitidos = self._tipos_permitidos(self._activo_elegido())
+        menu = self._widgets["tipo"]
+        actual = menu.get()
+        menu.configure(values=permitidos)
+        menu.set(actual if actual in permitidos else permitidos[0])
 
     # ------------------------------------------------------------------ pasos del guardado
     def _validar(self):
@@ -60,10 +78,10 @@ class VistaFlujos(VistaBase):
         tipo = self.TIPOS[self._widgets["tipo"].get()]
         if activo is None:
             errores["activo"] = "Primero registra un activo en la sección Activos."
-        elif tipo == "DIVIDENDO" and activo.tipo != "ACCION":
-            errores["tipo"] = "Los dividendos solo aplican a acciones. Para CDT, bonos y TES usa Interés o Capital."
-        elif tipo == "INTERES" and activo.tipo not in self.RENTA_FIJA:
-            errores["tipo"] = "Los intereses solo aplican a renta fija (CDT, bono o TES). Para acciones usa Dividendo."
+        elif self._widgets["tipo"].get() not in self._tipos_permitidos(activo):
+            errores["tipo"] = (
+                "En una acción solo se registran dividendos." if activo.tipo == "ACCION"
+                else "El dividendo solo aplica a acciones. Para CDT, bonos y TES usa Interés, Capital u Otro.")
 
         fecha = self._fecha(errores, "fecha", "Fecha de pago")
         bruto = self._numero(errores, "valor_bruto", "Valor bruto", "270.000")
@@ -93,6 +111,7 @@ class VistaFlujos(VistaBase):
     def refrescar(self) -> None:
         try:
             self._actualizar_menu_activos()
+            self._actualizar_tipos()
             por_id = {a.id: a for a in self._activos.values()}
             flujos = list(reversed(self.repositorio.listar_flujos()))  # lo más reciente arriba
             filas = []

@@ -1,5 +1,4 @@
-
-from datetime import date
+from datetime import date, timedelta
 
 import pandas as pd
 import yfinance as yf
@@ -11,6 +10,7 @@ from modelos.accion import Accion
 class ServicioPrecios:
 
     TICKER_TRM = "COP=X"
+    MARGEN_TRM_DIAS = 10
 
     def __init__(self, repositorio: Repositorio) -> None:
         self.repositorio = repositorio
@@ -62,7 +62,6 @@ class ServicioPrecios:
             return None
 
     def historial(self, ticker: str, desde: date) -> pd.DataFrame:
-
         vacio = pd.DataFrame(columns=["fecha", "precio"])
         if not isinstance(ticker, str) or not ticker.strip():
             return vacio
@@ -82,19 +81,19 @@ class ServicioPrecios:
             if moneda not in ("COP", "USD"):
                 return vacio
 
-            trm = self.trm_actual() if moneda == "USD" else None
+            trm_serie, trm_fija = self._preparar_trm(moneda, desde)
             filas = []
             for indice, fila in datos.iterrows():
                 cierre = float(fila["Close"])
                 if cierre <= 0:
                     continue
-                if moneda == "USD":
-                    cierre = cierre * trm
                 dia = (
                     indice.date()
                     if hasattr(indice, "date")
                     else date.fromisoformat(str(indice)[:10])
                 )
+                if moneda == "USD":
+                    cierre = cierre * self._trm_del_dia(dia, trm_serie, trm_fija)
                 filas.append({"fecha": dia, "precio": cierre})
             if not filas:
                 return vacio
@@ -118,8 +117,8 @@ class ServicioPrecios:
             moneda = self._moneda_ticker(ticker)
             if moneda not in ("COP", "USD"):
                 return vacio
-            trm = self.trm_actual() if moneda == "USD" else None
 
+            trm_serie, trm_fija = self._preparar_trm(moneda, desde)
             filas = []
             for indice, valor in serie.items():
                 dia = (
@@ -133,13 +132,65 @@ class ServicioPrecios:
                 if monto <= 0:
                     continue
                 if moneda == "USD":
-                    monto = monto * trm
+                    monto = monto * self._trm_del_dia(dia, trm_serie, trm_fija)
                 filas.append({"fecha": dia, "valor_por_accion": monto})
             if not filas:
                 return vacio
             return pd.DataFrame(filas)
         except Exception:
             return vacio
+
+    def _preparar_trm(
+        self, moneda: str, desde: date
+    ) -> tuple[pd.Series | None, float | None]:
+        if moneda != "USD":
+            return None, None
+        serie = self._trm_historica(desde)
+        if serie is not None:
+            return serie, None
+        return None, self.trm_actual()
+
+    def _trm_historica(self, desde: date) -> pd.Series | None:
+        try:
+            inicio = desde - timedelta(days=self.MARGEN_TRM_DIAS)
+            datos = yf.Ticker(self.TICKER_TRM).history(
+                start=inicio.isoformat(),
+                auto_adjust=False,
+            )
+            if datos is None or datos.empty:
+                return None
+
+            cierres = datos["Close"].dropna()
+            cierres = cierres[cierres > 0]
+            if cierres.empty:
+                return None
+
+            indice = pd.DatetimeIndex(cierres.index)
+            if indice.tz is not None:
+                indice = indice.tz_localize(None)
+            cierres.index = indice.normalize()
+            cierres = cierres[~cierres.index.duplicated(keep="last")].sort_index()
+
+            ultimo_dia = max(cierres.index.max(), pd.Timestamp(date.today()))
+            todos_los_dias = pd.date_range(
+                cierres.index.min(), ultimo_dia, freq="D"
+            )
+            return cierres.reindex(todos_los_dias).ffill()
+        except Exception:
+            return None
+
+    @staticmethod
+    def _trm_del_dia(
+        dia: date, trm_serie: pd.Series | None, trm_fija: float | None
+    ) -> float:
+        if trm_serie is None:
+            return float(trm_fija)
+        marca = pd.Timestamp(dia)
+        if marca < trm_serie.index[0]:
+            return float(trm_serie.iloc[0])
+        if marca > trm_serie.index[-1]:
+            return float(trm_serie.iloc[-1])
+        return float(trm_serie.loc[marca])
 
     def _descargar_ultimo_cierre(self, ticker: str) -> float | None:
         datos = yf.Ticker(ticker).history(period="5d", auto_adjust=False)
@@ -158,7 +209,6 @@ class ServicioPrecios:
         return None
 
     def _moneda_ticker(self, ticker: str) -> str | None:
-
         if ticker == self.TICKER_TRM:
             return "COP"
 

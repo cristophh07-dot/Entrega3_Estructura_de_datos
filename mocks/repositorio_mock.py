@@ -79,13 +79,14 @@ class RepositorioMock:
         activos = [
             self._accion(1, "Apple", "AAPL", "USD"),
             self._accion(2, "Ecopetrol", "ECOPETROL", "COP"),
-            self._renta_fija(3, "CDT Banco 360 días", "CDT", 5_000_000, 0.105,
-                             date(2026, 2, 2), date(2027, 2, 2), 0),
-            self._renta_fija(4, "Bono corporativo 2029", "BONO", 10_000_000,
-                             0.11, date(2024, 5, 15), date(2029, 5, 15), 6,
-                             0.105),
-            self._renta_fija(5, "TES COP 2031", "TES", 1_000_000, 0.07,
-                             date(2020, 3, 26), date(2031, 3, 26), 12, 0.112),
+            # Renta fija con condiciones reales (las mismas de CargadorEjemplo)
+            self._renta_fija(3, "CDT Bancolombia 360 días", "CDT", 5_000_000, 0.1213,
+                             date(2026, 2, 23), date(2027, 2, 18), 0),
+            self._renta_fija(4, "Bono Itaú 2030 (BITU125SA060)", "BONO", 10_000_000,
+                             0.1155, date(2025, 3, 18), date(2030, 3, 18), 3,
+                             0.1155),
+            self._renta_fija(5, "TES 7% 2031 (TFIT10260331)", "TES", 100_000, 0.07,
+                             date(2021, 3, 26), date(2031, 3, 26), 12, 0.1299),
             self._accion(6, "Nike", "NKE", "USD"),
             self._accion(7, "Coca-Cola", "KO", "USD"),
         ]
@@ -95,9 +96,9 @@ class RepositorioMock:
         operaciones = [
             self._operacion(1, 1, "COMPRA", date(2026, 1, 15), 10, 950_000, 15_000),
             self._operacion(2, 2, "COMPRA", date(2026, 1, 20), 2_000, 2_150, 12_000),
-            self._operacion(3, 3, "COMPRA", date(2026, 2, 2), 1, 5_000_000, 0),
-            self._operacion(4, 4, "COMPRA", date(2026, 3, 10), 1, 10_150_000, 25_000),
-            self._operacion(5, 5, "COMPRA", date(2026, 4, 6), 5, 905_000, 18_000),
+            self._operacion(3, 3, "COMPRA", date(2026, 2, 23), 1, 5_000_000, 0),
+            self._operacion(4, 4, "COMPRA", date(2025, 3, 18), 1, 10_000_000, 20_000),
+            self._operacion(5, 5, "COMPRA", date(2026, 3, 2), 50, 81_827, 8_183),
             self._operacion(6, 1, "VENTA", date(2026, 8, 20), 3, 1_020_000, 10_000),
             self._operacion(7, 6, "COMPRA", date(2026, 2, 10), 20, 290_000, 12_000),
             self._operacion(8, 7, "COMPRA", date(2026, 2, 12), 30, 287_000, 12_000),
@@ -108,7 +109,15 @@ class RepositorioMock:
         flujos = [
             self._flujo(1, 1, "DIVIDENDO", date(2026, 5, 15), 36_000, 0.30),
             self._flujo(2, 2, "DIVIDENDO", date(2026, 4, 28), 600_000, 0.10),
-            self._flujo(3, 4, "INTERES", date(2026, 5, 15), 535_000, 0.04),
+            # Cupones trimestrales del bono: 10.000.000 × (1,1155^(3/12) − 1)
+            self._flujo(3, 4, "INTERES", date(2025, 6, 18), 277_024.49, 0),
+            self._flujo(7, 4, "INTERES", date(2025, 9, 18), 277_024.49, 0),
+            self._flujo(8, 4, "INTERES", date(2025, 12, 18), 277_024.49, 0),
+            self._flujo(9, 4, "INTERES", date(2026, 3, 18), 277_024.49, 0),
+            self._flujo(10, 4, "INTERES", date(2026, 6, 18), 277_024.49, 0),
+            self._flujo(11, 4, "INTERES", date(2026, 9, 18), 277_024.49, 0),
+            # Cupón anual del TES: 50 títulos × 100.000 × 7 %
+            self._flujo(12, 5, "INTERES", date(2026, 3, 26), 350_000, 0),
             self._flujo(4, 7, "DIVIDENDO", date(2026, 4, 1), 65_190, 0.30),
             self._flujo(5, 6, "DIVIDENDO", date(2026, 7, 1), 33_620, 0.30),
             self._flujo(6, 7, "DIVIDENDO", date(2026, 7, 1), 65_190, 0.30),

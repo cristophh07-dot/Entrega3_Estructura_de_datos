@@ -31,8 +31,8 @@ class VistaActivos(VistaBase):
         ("moneda", "Moneda en que cotiza", ("ACCION",), ["COP", "USD"]),
         ("valor_nominal", "Valor nominal por título (COP)", _RENTA_FIJA, "Ej. 5.000.000"),
         ("tasa", "Tasa E.A. del título (%)", _RENTA_FIJA, "Ej. 10,5"),
-        ("fecha_emision", "Fecha de emisión", _RENTA_FIJA, "AAAA-MM-DD"),
-        ("fecha_vencimiento", "Fecha de vencimiento", _RENTA_FIJA, "AAAA-MM-DD"),
+        ("fecha_emision", "Fecha de emisión", _RENTA_FIJA, "fecha"),
+        ("fecha_vencimiento", "Fecha de vencimiento", _RENTA_FIJA, "fecha"),
         ("periodicidad", "Pago de intereses", _RENTA_FIJA, list(PERIODICIDADES)),
         ("tasa_mercado", "Tasa de mercado E.A. (%), opcional", _RENTA_FIJA, "Vacío si no aplica"),
     ]
@@ -55,6 +55,8 @@ class VistaActivos(VistaBase):
         for clave, etiqueta, _, extra in self.CAMPOS:
             if isinstance(extra, list):
                 self._crear_campo(self._rejilla, clave, etiqueta, valores=extra)
+            elif extra == "fecha":
+                self._crear_campo(self._rejilla, clave, etiqueta, fecha=True)
             else:
                 self._crear_campo(self._rejilla, clave, etiqueta, ayuda=extra)
         self._crear_barra_acciones(cuerpo, "Guardar activo")

@@ -1,0 +1,138 @@
+classDiagram
+  class datos {
+  }
+  class repositorio {
+  }
+  class servicio_precios {
+  }
+  class servicio_velas {
+  }
+  class interfaz {
+  }
+  class selector_fecha {
+  }
+  class tabla_datos {
+  }
+  class tema {
+  }
+  class ventana_principal {
+  }
+  class vista_acciones {
+  }
+  class vista_activos {
+  }
+  class vista_base {
+  }
+  class vista_dashboard {
+  }
+  class vista_flujos {
+  }
+  class vista_operaciones {
+  }
+  class modelos {
+  }
+  class accion {
+  }
+  class activo {
+  }
+  class bono {
+  }
+  class cdt {
+  }
+  class flujo_caja {
+  }
+  class operacion {
+  }
+  class renta_fija {
+  }
+  class tes {
+  }
+  class motor {
+  }
+  class calculadora_rentabilidad {
+  }
+  class cargador_ejemplo {
+  }
+  class comision_broker {
+  }
+  class conversor_moneda {
+  }
+  class extracto_movimientos {
+  }
+  class generador_flujos {
+  }
+  class historial_accion {
+  }
+  class portafolio {
+  }
+  class posicion {
+  }
+  class valorador_renta_fija {
+  }
+  class valorador_renta_variable {
+  }
+  datos --> repositorio
+  repositorio --> accion
+  repositorio --> bono
+  repositorio --> cdt
+  repositorio --> flujo_caja
+  repositorio --> operacion
+  repositorio --> tes
+  servicio_precios --> repositorio
+  servicio_precios --> accion
+  selector_fecha --> tema
+  tabla_datos --> tema
+  ventana_principal --> tema
+  vista_acciones --> tabla_datos
+  vista_acciones --> tema
+  vista_activos --> tema
+  vista_activos --> vista_base
+  vista_activos --> accion
+  vista_activos --> bono
+  vista_activos --> cdt
+  vista_activos --> tes
+  vista_base --> selector_fecha
+  vista_base --> tabla_datos
+  vista_base --> tema
+  vista_dashboard --> tabla_datos
+  vista_dashboard --> tema
+  vista_flujos --> tema
+  vista_flujos --> vista_base
+  vista_flujos --> flujo_caja
+  vista_operaciones --> tema
+  vista_operaciones --> vista_base
+  vista_operaciones --> operacion
+  modelos --> accion
+  modelos --> activo
+  modelos --> bono
+  modelos --> cdt
+  modelos --> flujo_caja
+  modelos --> operacion
+  modelos --> renta_fija
+  modelos --> tes
+  accion --> activo
+  bono --> renta_fija
+  cdt --> renta_fija
+  renta_fija --> activo
+  tes --> bono
+  tes --> renta_fija
+  cargador_ejemplo --> accion
+  cargador_ejemplo --> bono
+  cargador_ejemplo --> cdt
+  cargador_ejemplo --> flujo_caja
+  cargador_ejemplo --> operacion
+  cargador_ejemplo --> tes
+  cargador_ejemplo --> comision_broker
+  cargador_ejemplo --> conversor_moneda
+  cargador_ejemplo --> generador_flujos
+  historial_accion --> posicion
+  portafolio --> calculadora_rentabilidad
+  portafolio --> comision_broker
+  portafolio --> conversor_moneda
+  portafolio --> extracto_movimientos
+  portafolio --> generador_flujos
+  portafolio --> historial_accion
+  portafolio --> posicion
+  portafolio --> valorador_renta_fija
+  portafolio --> valorador_renta_variable
+  valorador_renta_fija --> generador_flujos

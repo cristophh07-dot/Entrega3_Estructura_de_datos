@@ -25,9 +25,9 @@ class TestPortafolio(unittest.TestCase):
 
     def test_totales_del_ejemplo(self):
         r = self.p.resumen()
-        self.assertAlmostEqual(r["total_invertido"], 47_979_000)
+        self.assertAlmostEqual(r["total_invertido"], 47_380_533)
         self.assertAlmostEqual(r["ventas"], 3_050_000)
-        self.assertAlmostEqual(r["comisiones"], 104_000)
+        self.assertAlmostEqual(r["comisiones"], 89_183)
 
     def test_incluye_nike_y_coca_cola(self):
         nombres = set(self.p.posiciones()["nombre"])
@@ -65,9 +65,9 @@ class TestPortafolio(unittest.TestCase):
         viernes = self.p.precio_sugerido(activos["Coca-Cola"], date(2026, 10, 2))
         self.assertIsNotNone(viernes)
         self.assertEqual(pasado, viernes)
-        cdt = self.p.precio_sugerido(activos["CDT Banco 360 días"], date(2026, 8, 3))
-        self.assertAlmostEqual(cdt, 5_000_000 * 1.105 ** (182 / 365))
-        self.assertIsNone(self.p.precio_sugerido(activos["CDT Banco 360 días"], date(2027, 3, 1)))
+        cdt = self.p.precio_sugerido(activos["CDT Bancolombia 360 días"], date(2026, 8, 24))
+        self.assertAlmostEqual(cdt, 5_000_000 * 1.1213 ** (182 / 365))
+        self.assertIsNone(self.p.precio_sugerido(activos["CDT Bancolombia 360 días"], date(2027, 3, 1)))
 
     def test_mock_sugiere_precio(self):
         m = PortafolioMock()
@@ -101,9 +101,19 @@ class TestPortafolio(unittest.TestCase):
         self.assertTrue((serie["valor"] > 0).all())
 
     def test_proximos_flujos_del_bono(self):
-        f = self.p.proximos_flujos(dias=30)
-        self.assertEqual(list(f["nombre"]), ["Bono corporativo 2029"])
-        self.assertEqual(f["fecha"].iloc[0], date(2026, 11, 15))
+        f = self.p.proximos_flujos(dias=60)
+        self.assertEqual(list(f["nombre"]), ["Bono Itaú 2030 (BITU125SA060)"])
+        self.assertEqual(f["fecha"].iloc[0], date(2026, 12, 18))
+
+    def test_tes_real_reproduce_el_precio_de_mercado(self):
+        # TES TFIT10260331 el 2-mar-2026: tasa 14,150 %, precio sucio 81,827
+        # (informe diario de deuda pública de MinHacienda). El modelo debe dar
+        # ese precio con menos de 0,1 % de diferencia.
+        from modelos.tes import TES
+        from motor.valorador_renta_fija import ValoradorRentaFija
+        tes = TES("TES 7% 2031", 100_000, 0.07, date(2021, 3, 26), date(2031, 3, 26), 12, 0.1415)
+        precio = ValoradorRentaFija().precio(tes, date(2026, 3, 2))
+        self.assertAlmostEqual(precio / 81_827, 1.0, delta=0.001)
 
 
 if __name__ == "__main__":
